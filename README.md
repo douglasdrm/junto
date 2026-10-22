@@ -4,14 +4,18 @@ Abra `index.html` no navegador. Não é necessário instalar nada.
 
 ## O que funciona
 - Criar, selecionar e editar viagens isoladas entre si
-- Definir destino, datas, quantidade de hóspedes e orçamento
-- Cadastrar e editar participantes, pesos e metas individuais
+- Definir destino, datas, hóspedes, orçamento, prazo e regra de divisão
+- Organizar núcleos familiares e responsáveis financeiros
+- Cadastrar adultos e crianças com cotas integrais, fracionárias ou isentas
+- Calcular a idade na data da viagem somente quando o nascimento é informado
+- Visualizar e confirmar o rateio antes de atualizar as metas individuais
+- Preservar metas personalizadas durante a redistribuição do orçamento
 - Registrar contribuições parciais para uma ou várias pessoas
 - Cadastrar despesas previstas e pagas, inclusive parcelas do imóvel
 - Acompanhar o resumo sem confundir orçamento, caixa e gastos
 - Distribuir pagamentos de forma igualitária ou personalizada entre beneficiários
 - Consultar contribuições por participante, mês e evolução financeira
-- Organizar núcleos familiares e responsáveis financeiros
+- Consultar quanto cada núcleo deve, pagou e ainda precisa contribuir
 - Salvar links de casas e preços cotados manualmente
 - Abrir pesquisa do Google configurada para a viagem
 - Exportar/importar backup JSON

@@ -19,7 +19,7 @@ function migrateV3(data){
     person.responsibleId=person.responsibleId||'';
   });
   if(data.financeTab==='contribuicoes')data.financeTab='participantes';
-  data.version=3;
+  data.version=Math.max(3,Number(data.version)||0);
   return data;
 }
 db=migrateV3(db);
@@ -64,10 +64,10 @@ function participants(){
 function finance(){
   if(!trip())return noTrip();
   const tabs=[['participantes','Por participante'],['mensal','Visão mensal'],['evolucao','Evolução'],['resumo','Resumo'],['despesas','Despesas']];
-  if(!tabs.some(x=>x[0]===db.financeTab))db.financeTab='participantes';
+  const activeTab=tabs.some(x=>x[0]===db.financeTab)?db.financeTab:'participantes';
   const action=db.financeTab==='despesas'?'<button class="button primary" data-add-expense>+ Nova despesa</button>':'<button class="button primary" data-new-payment>+ Novo pagamento</button>';
   const views={participantes:participantFinance,mensal:monthlyFinance,evolucao:evolutionFinance,resumo:summary,despesas:expensesView};
-  return head('Financeiro','Uma única fonte de registros para acompanhar pessoas, meses, evolução e caixa.',action)+demo()+`<div class="tabs" role="tablist">${tabs.map(([id,label])=>`<button class="tab ${db.financeTab===id?'selected':''}" data-tab="${id}">${label}</button>`).join('')}</div>${views[db.financeTab]()}`;
+  return head('Financeiro','Uma única fonte de registros para acompanhar pessoas, meses, evolução e caixa.',action)+demo()+`<div class="tabs" role="tablist">${tabs.map(([id,label])=>`<button class="tab ${activeTab===id?'selected':''}" data-tab="${id}">${label}</button>`).join('')}</div>${views[activeTab]()}`;
 }
 function participantFinance(){
   const query=(db.financeSearch||'').toLowerCase(),filter=db.financeFilter||'todos';
@@ -142,7 +142,7 @@ document.addEventListener('submit',event=>{
   if(id==='person-v3')db.people.push({id:uid(),trip:db.active,...data});else Object.assign(db.people.find(p=>p.id===event.target.dataset.id),data);closeModal();commit(id==='person-v3'?'Participante adicionado. Você pode incluir a próxima pessoa.':'Participante atualizado.');if(id==='person-v3')setTimeout(()=>$('#name')?.focus());
 },true);
 
-document.addEventListener('click',event=>{const reset=event.target.closest('#reset');if(reset){event.preventDefault();event.stopImmediatePropagation();if(confirm('Apagar todos os dados e restaurar a demonstração?')){db=migrateV3(clone(DEMO));commit('Demonstração restaurada.')}return}const button=event.target.closest('[data-remove="people"]');if(!button)return;const linked=db.payments.some(payment=>payment.trip===db.active&&payment.allocations?.some(a=>a.participantId===button.dataset.id));if(linked){event.preventDefault();event.stopImmediatePropagation();toast('Este participante possui pagamentos vinculados. Remova ou edite esses vínculos primeiro.','error')}},true);
+document.addEventListener('click',event=>{const reset=event.target.closest('#reset');if(reset){event.preventDefault();event.stopImmediatePropagation();if(confirm('Apagar todos os dados e restaurar a demonstração?')){db=typeof migrateV4==='function'?migrateV4(migrateV3(clone(DEMO))):migrateV3(clone(DEMO));commit('Demonstração restaurada.')}return}const button=event.target.closest('[data-remove="people"]');if(!button)return;const linked=db.payments.some(payment=>payment.trip===db.active&&payment.allocations?.some(a=>a.participantId===button.dataset.id));if(linked){event.preventDefault();event.stopImmediatePropagation();toast('Este participante possui pagamentos vinculados. Remova ou edite esses vínculos primeiro.','error')}},true);
 
 async function importData(file){
   if(!file)return;
