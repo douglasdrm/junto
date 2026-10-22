@@ -9,6 +9,9 @@ Abra `index.html` no navegador. Não é necessário instalar nada.
 - Registrar contribuições parciais para uma ou várias pessoas
 - Cadastrar despesas previstas e pagas, inclusive parcelas do imóvel
 - Acompanhar o resumo sem confundir orçamento, caixa e gastos
+- Distribuir pagamentos de forma igualitária ou personalizada entre beneficiários
+- Consultar contribuições por participante, mês e evolução financeira
+- Organizar núcleos familiares e responsáveis financeiros
 - Salvar links de casas e preços cotados manualmente
 - Abrir pesquisa do Google configurada para a viagem
 - Exportar/importar backup JSON
@@ -21,6 +24,7 @@ Abra `index.html` no navegador. Não é necessário instalar nada.
 - Não há leitura automática de anúncios, preços, disponibilidade ou pagamentos.
 - A viagem inicial está identificada como demonstração e seus valores são ilustrativos.
 - Não use informações financeiras sensíveis ou de outras pessoas neste protótipo.
+- A arquitetura de importação valida linhas normalizadas, totais, vínculos e duplicidades. A leitura binária de XLSX ainda requer um adaptador/biblioteca e o mapeamento confirmado da planilha real.
 
 ## Próxima etapa para produção
 Next.js + Supabase Auth/Postgres, isolamento por grupo via RLS, permissões organizador/participante/admin da plataforma, consentimento de recebimento de propostas, auditoria e implantação HTTPS.
