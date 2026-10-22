@@ -24,7 +24,8 @@ Abra `index.html` no navegador. Não é necessário instalar nada.
 - Não há leitura automática de anúncios, preços, disponibilidade ou pagamentos.
 - A viagem inicial está identificada como demonstração e seus valores são ilustrativos.
 - Não use informações financeiras sensíveis ou de outras pessoas neste protótipo.
-- A arquitetura de importação valida linhas normalizadas, totais, vínculos e duplicidades. A leitura binária de XLSX ainda requer um adaptador/biblioteca e o mapeamento confirmado da planilha real.
+- A importação valida fórmulas e valores armazenados, competências, totais, vínculos e duplicidades antes de persistir qualquer registro.
+- A importação XLSX usa SheetJS Community Edition 0.20.3 vendorizado em `vendor/`; os arquivos são processados somente no navegador.
 
 ## Próxima etapa para produção
 Next.js + Supabase Auth/Postgres, isolamento por grupo via RLS, permissões organizador/participante/admin da plataforma, consentimento de recebimento de propostas, auditoria e implantação HTTPS.
