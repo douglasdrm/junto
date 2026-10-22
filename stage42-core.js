@@ -6,7 +6,7 @@
   function dueDate(month,day){if(!day)return '';const [year,value]=month.split('-').map(Number),last=new Date(Date.UTC(year,value,0)).getUTCDate();return `${month}-${String(Math.min(Math.max(1,Number(day)||1),last)).padStart(2,'0')}`}
   function buildPlan({mode,startMonth,endMonth,dueDay,defaultMonthlyCents=0,people=[],monthlyAmounts={},targets={},splitBudget=false}){
     const months=monthsBetween(startMonth,endMonth),competencies=[],goals={};
-    if(mode==='monthly'&&!months.length)return {ok:false,error:'Informe um período mensal válido.'};
+    if((mode==='monthly'||splitBudget)&&!months.length)return {ok:false,error:'Informe um período mensal válido.'};
     people.forEach(person=>{
       if(person.contributes===false){goals[person.id]=0;return}
       if(mode==='monthly'){
@@ -14,7 +14,7 @@
         months.forEach(month=>competencies.push({participantId:person.id,month,plannedCents:monthly,dueDate:dueDate(month,dueDay)}));
       }else{
         const goal=Math.max(0,Math.round(Number(targets[person.id])||0));goals[person.id]=goal;
-        if(mode==='budget'&&splitBudget&&months.length)splitCents(goal,months.length).forEach((amount,index)=>competencies.push({participantId:person.id,month:months[index],plannedCents:amount,dueDate:dueDate(months[index],dueDay)}));
+        if((mode==='budget'||mode==='custom')&&splitBudget&&months.length)splitCents(goal,months.length).forEach((amount,index)=>competencies.push({participantId:person.id,month:months[index],plannedCents:amount,dueDate:dueDate(months[index],dueDay)}));
       }
     });
     return {ok:true,mode,months,goals,competencies,totalGoalCents:Object.values(goals).reduce((sum,value)=>sum+value,0),totalPlannedCents:competencies.reduce((sum,item)=>sum+item.plannedCents,0)};
