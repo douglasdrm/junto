@@ -27,7 +27,7 @@ function migrateV4(data){
     if(person.customTargetCents!=null&&!Number.isInteger(person.customTargetCents))person.customTargetCents=null;
     if(!Number.isInteger(person.targetCents)&&currentTrip?.totalBudgetCents===0)person.targetCents=0;
   });
-  data.version=4;return data;
+  data.version=Math.max(4,Number(data.version)||0);return data;
 }
 db=migrateV4(db);
 
