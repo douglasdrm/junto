@@ -90,10 +90,10 @@ function familyFinance(){
 function finance(){
   if(!trip())return noTrip();
   const tabs=[['participantes','Por participante'],['familias','Por família'],['mensal','Visão mensal'],['evolucao','Evolução'],['resumo','Resumo'],['despesas','Despesas']];
-  if(!tabs.some(item=>item[0]===db.financeTab))db.financeTab='participantes';
+  const activeTab=tabs.some(item=>item[0]===db.financeTab)?db.financeTab:'participantes';
   const action=db.financeTab==='despesas'?'<button class="button primary" data-add-expense>+ Nova despesa</button>':'<button class="button primary" data-new-payment>+ Novo pagamento</button>';
   const views={participantes:participantFinance,familias:familyFinance,mensal:monthlyFinance,evolucao:evolutionFinance,resumo:summary,despesas:expensesView};
-  return head('Financeiro','Metas, famílias, recebimentos e despesas calculados sobre os mesmos lançamentos.',action)+demo()+`<div class="tabs" role="tablist">${tabs.map(([id,label])=>`<button class="tab ${db.financeTab===id?'selected':''}" data-tab="${id}">${label}</button>`).join('')}</div>${views[db.financeTab]()}`;
+  return head('Financeiro','Metas, famílias, recebimentos e despesas calculados sobre os mesmos lançamentos.',action)+demo()+`<div class="tabs" role="tablist">${tabs.map(([id,label])=>`<button class="tab ${activeTab===id?'selected':''}" data-tab="${id}">${label}</button>`).join('')}</div>${views[activeTab]()}`;
 }
 function summary(){
   const goal=target(),got=received(),out=spent(),plan=planned(),pending=expenses().reduce((sum,item)=>sum+Math.max(0,item.plannedCents-item.paidCents),0),pct=goal?Math.min(100,Math.round(got/goal*100)):0,confirmed=people().reduce((sum,person)=>sum+personTarget(person),0);

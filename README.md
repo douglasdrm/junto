@@ -14,6 +14,10 @@ Abra `index.html` no navegador. Não é necessário instalar nada.
 - Calcular a idade na data da viagem somente quando o nascimento é informado
 - Visualizar e confirmar o rateio antes de atualizar as metas individuais
 - Preservar metas personalizadas durante a redistribuição do orçamento
+- Escolher entre caixinha mensal, rateio por orçamento e metas personalizadas
+- Acompanhar competências previstas sem confundi-las com dinheiro recebido
+- Classificar um pagamento em uma ou várias competências mensais
+- Consultar saldo real, pendências, contribuições futuras e projeção da caixinha
 - Registrar contribuições parciais para uma ou várias pessoas
 - Cadastrar despesas previstas e pagas, inclusive parcelas do imóvel
 - Acompanhar o resumo sem confundir orçamento, caixa e gastos
