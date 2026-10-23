@@ -35,8 +35,26 @@ Abra `index.html` no navegador. Não é necessário instalar nada.
 - Registrar rendimentos manuais e decidir o destino das sobras
 - Manter listas de compras anuais, custos e itens que sobraram
 
+## Contas online — fundação da Etapa 5
+
+O modo local continua sendo o padrão. A base para login por link de e-mail e perfis online está preparada, mas só é ativada depois da configuração do Supabase.
+
+1. Crie um projeto no Supabase.
+2. Execute, na ordem, os arquivos de `supabase/migrations/` pelo fluxo de migrations do projeto.
+3. Copie a URL e a chave **publicável** para `supabase/config.js`.
+4. Configure em Authentication as URLs de redirecionamento locais e de produção.
+5. Crie a primeira conta pela opção “Entrar” e promova-a a proprietária diretamente no SQL Editor:
+
+```sql
+update public.profiles
+set platform_owner = true
+where id = (select id from auth.users where email = 'EMAIL_DO_PRIMEIRO_ORGANIZADOR');
+```
+
+Nunca coloque a `secret key` ou a chave `service_role` em arquivos servidos pelo site. A conta online ainda não migra nem sincroniza automaticamente os dados do `localStorage`.
+
 ## Limitações importantes
-- Protótipo sem servidor, autenticação ou segurança multiusuário.
+- O modo multiusuário está em implantação; nesta primeira fundação apenas login e perfil estão preparados.
 - O painel admin mostra apenas os dados deste navegador.
 - Ninguém mais vê os dados que você preencher.
 - Não há leitura automática de anúncios, preços, disponibilidade ou pagamentos.
