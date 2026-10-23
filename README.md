@@ -30,6 +30,10 @@ Abra `index.html` no navegador. Não é necessário instalar nada.
 - Abrir pesquisa do Google configurada para a viagem
 - Exportar/importar backup JSON
 - Persistir os dados no armazenamento local do navegador
+- Escolher entre juntar dinheiro primeiro ou dividir um custo conhecido
+- Acompanhar contribuições em uma grade mensal simples
+- Registrar rendimentos manuais e decidir o destino das sobras
+- Manter listas de compras anuais, custos e itens que sobraram
 
 ## Limitações importantes
 - Protótipo sem servidor, autenticação ou segurança multiusuário.
