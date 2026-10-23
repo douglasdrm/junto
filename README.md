@@ -4,6 +4,8 @@ Abra `index.html` no navegador. Não é necessário instalar nada.
 
 ## O que funciona
 - Criar, selecionar e editar viagens isoladas entre si
+- Criar uma viagem rapidamente com apenas nome, destino opcional e participantes
+- Misturar pessoas novas, pessoas permanentes e Turmas no cadastro inicial
 - Criar grupos permanentes reutilizáveis em várias viagens
 - Cadastrar pessoas uma única vez e selecioná-las em novas viagens
 - Manter vínculos familiares e preferências de hospedagem opcionais
