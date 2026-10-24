@@ -11,6 +11,10 @@ function onlineLinks(){if(!db.onlineTrips||typeof db.onlineTrips!=='object')db.o
 function activeOnlineLink(){return onlineLinks()[db.active]||null}
 function cloneOnline(value){return JSON.parse(JSON.stringify(value))}
 function onlineError(error,fallback){console.error(error);return error?.message?.includes('sync conflict')?'Esta viagem foi alterada em outro aparelho. Abra novamente a versão online antes de continuar.':fallback}
+function showOnlineFailure(title,error,fallback){
+  console.error(error);const message=error?.message||fallback,details=error?.details||error?.hint||'',code=error?.code||'';
+  modal(title,'O Supabase devolveu os detalhes abaixo.',`<div class="stack"><div class="notice warn"><strong>${esc(message)}</strong>${details?`<p>${esc(details)}</p>`:''}${code?`<p>Código: <code>${esc(code)}</code></p>`:''}</div><p class="help">Essas informações ajudam a corrigir o problema. Você pode tirar um print desta janela e enviar.</p><div class="actions"><button type="button" class="button primary" data-close>Fechar</button></div></div>`);
+}
 function updateOnlineNote(){const note=document.querySelector('.side-note');if(!note)return;const linked=Boolean(juntoOnline.user&&activeOnlineLink());note.innerHTML=`<i></i> ${linked?'Viagem sincronizada online':juntoOnline.user?'Conta conectada · viagem ainda local':'Dados salvos somente neste navegador'}`}
 function updateAccountButton(){document.querySelectorAll('[data-account]').forEach(button=>{button.classList.toggle('is-online',Boolean(juntoOnline.user));const label=button.querySelector('span');if(label)label.textContent=juntoOnline.user?(juntoOnline.profile?.display_name||juntoOnline.user.email||'Minha conta'):'Entrar'});updateOnlineNote()}
 function tripBundle(){
@@ -39,7 +43,7 @@ async function importActiveTrip(){
   if(!confirm(`Levar “${trip().name}” para sua conta online? Depois disso, as alterações desta viagem serão sincronizadas.`))return;
   const payload=tripBundle(),hash=await contentHash(payload),button=document.querySelector('[data-online-import]');if(button)button.disabled=true;
   const {data,error}=await juntoOnline.client.rpc('import_local_trip',{payload,content_hash:hash});
-  if(error){if(button)button.disabled=false;return toast(onlineError(error,'Não foi possível levar a viagem para a conta.'),'error')}
+  if(error){if(button)button.disabled=false;showOnlineFailure('Não foi possível levar a viagem para a conta',error,'Falha desconhecida ao salvar a viagem.');return}
   persistOnlineLink(db.active,{tripId:data.trip_id,revision:Number(data.revision)||1});accountModal();toast('Viagem salva na sua conta e sincronização ativada.');
 }
 function scheduleOnlineSync(){clearTimeout(juntoOnline.syncTimer);const link=activeOnlineLink();if(!juntoOnline.user||!link||link.conflict)return;if(juntoOnline.syncing){juntoOnline.syncQueued=true;return}juntoOnline.syncTimer=setTimeout(syncActiveTrip,900)}
