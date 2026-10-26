@@ -1,10 +1,11 @@
-# Juntô — MVP local de viagens em grupo
+# Juntô — planejamento em grupo
 
 Abra `index.html` no navegador. Não é necessário instalar nada.
 
 ## O que funciona
-- Criar, selecionar e editar viagens isoladas entre si
-- Criar uma viagem rapidamente com apenas nome, destino opcional e participantes
+- Escolher entre organizar uma viagem ou um evento, com fluxos e textos próprios
+- Criar, selecionar e editar planejamentos isolados entre si
+- Criar um planejamento rapidamente com apenas nome, local ou destino opcional e participantes
 - Misturar pessoas novas, pessoas permanentes e Turmas no cadastro inicial
 - Criar grupos permanentes reutilizáveis em várias viagens
 - Cadastrar pessoas uma única vez e selecioná-las em novas viagens
@@ -26,8 +27,8 @@ Abra `index.html` no navegador. Não é necessário instalar nada.
 - Distribuir pagamentos de forma igualitária ou personalizada entre beneficiários
 - Consultar contribuições por participante, mês e evolução financeira
 - Consultar quanto cada núcleo deve, pagou e ainda precisa contribuir
-- Salvar links de casas e preços cotados manualmente
-- Abrir pesquisa do Google configurada para a viagem
+- Salvar links e preços de casas, hospedagens, espaços ou outras locações
+- Abrir pesquisa do Google configurada para viagem ou evento
 - Exportar/importar backup JSON
 - Persistir os dados no armazenamento local do navegador
 - Escolher entre juntar dinheiro primeiro ou dividir um custo conhecido
@@ -37,7 +38,7 @@ Abra `index.html` no navegador. Não é necessário instalar nada.
 
 ## Contas online — Etapa 5
 
-O modo local continua disponível. Depois da configuração do Supabase, uma viagem pode ser levada para a conta do organizador, sincronizada e compartilhada com outro administrador por convite.
+O modo local continua disponível. Depois da configuração do Supabase, uma viagem ou evento pode ser levado para a conta do organizador, sincronizado e compartilhado com outro administrador por convite.
 
 1. Crie um projeto no Supabase.
 2. Execute, na ordem, os arquivos de `supabase/migrations/` pelo fluxo de migrations do projeto.
@@ -51,7 +52,7 @@ set platform_owner = true
 where id = (select id from auth.users where email = 'EMAIL_DO_PRIMEIRO_ORGANIZADOR');
 ```
 
-Depois de entrar, abra “Minha conta” e use “Levar viagem para minha conta”. A partir daí, alterações dessa viagem são sincronizadas. O botão “Convidar administrador” cria um link de uso único, válido por sete dias, que pode ser enviado pelo WhatsApp.
+Depois de entrar, abra “Minha conta” e leve o planejamento para sua conta. A partir daí, as alterações são sincronizadas. O botão “Convidar administrador” cria um link de uso único, válido por sete dias, que pode ser enviado pelo WhatsApp.
 
 O acesso aceita e-mail e senha, recuperação de senha e Google. Para o Google, habilite o provedor em **Authentication → Providers → Google**, informe as credenciais OAuth do Google e cadastre no Google a URL de callback exibida pelo Supabase. Mantenha também a URL pública do aplicativo na lista de URLs de redirecionamento permitidas. O convite é preservado durante o login e aceito automaticamente depois que a conta é autenticada.
 
