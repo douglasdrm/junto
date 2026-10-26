@@ -298,7 +298,7 @@ function tripCoverPasteModal(item){modal('Colar foto da viagem',`Copie uma image
 function syncEditedTrip(item){if(item?.id!==db.active&&typeof syncTripSnapshotById==='function')syncTripSnapshotById(item.id)}
 async function deleteTripRecord(item){
   const onlineLink=db.onlineTrips?.[item.id];if(onlineLink){if(typeof juntoOnline==='undefined'||!juntoOnline.user)return toast('Entre na conta para excluir esta viagem online.','error');const {error}=await juntoOnline.client.rpc('delete_owned_trip',{target_trip:onlineLink.tripId});if(error)return showOnlineFailure('Não foi possível excluir a viagem',error,'Somente o proprietário pode excluir uma viagem online.')}
-  const tripKeys=['people','payments','houses','expenses','families','fundYields','fundSnapshots','shoppingItems','consumptionGroups'];tripKeys.forEach(key=>{if(Array.isArray(db[key]))db[key]=db[key].filter(record=>record.trip!==item.id)});db.trips=db.trips.filter(value=>value.id!==item.id);if(db.onlineTrips)delete db.onlineTrips[item.id];if(db.active===item.id){db.active=db.trips[0]?.id||'';db.activeGroupId=trip()?.groupId||db.activeGroupId}commit(`Viagem “${item.name}” excluída.`)
+  const tripKeys=['people','payments','houses','expenses','families','fundYields','fundSnapshots','shoppingItems','consumptionGroups','roomPlans'];tripKeys.forEach(key=>{if(Array.isArray(db[key]))db[key]=db[key].filter(record=>record.trip!==item.id)});db.trips=db.trips.filter(value=>value.id!==item.id);if(db.onlineTrips)delete db.onlineTrips[item.id];if(db.active===item.id){db.active=db.trips[0]?.id||'';db.activeGroupId=trip()?.groupId||db.activeGroupId}commit(`Viagem “${item.name}” excluída.`)
 }
 
 document.addEventListener('click',event=>{

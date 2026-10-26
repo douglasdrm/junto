@@ -3,7 +3,7 @@
 const initialAuthUrl=new URL(location.href),initialAuthHash=new URLSearchParams(location.hash.replace(/^#/,''));
 const juntoOnline={client:null,user:null,profile:null,configured:false,syncTimer:null,syncing:false,syncQueued:false,restoring:false,restoredFor:null,recoveryPending:initialAuthUrl.searchParams.get('auth_action')==='recovery'||initialAuthUrl.searchParams.get('type')==='recovery'||initialAuthHash.get('type')==='recovery'};
 const saveLocal=save;
-const tripScopedKeys=['people','payments','houses','expenses','families','fundYields','fundSnapshots','shoppingItems','consumptionGroups'];
+const tripScopedKeys=['people','payments','houses','expenses','families','fundYields','fundSnapshots','shoppingItems','consumptionGroups','roomPlans'];
 const groupScopedKeys=['members','groupFamilies','relationships','peopleMapLayouts','roomPreferences'];
 
 function onlineConfig(){return window.JUNTO_SUPABASE_CONFIG||{}}
