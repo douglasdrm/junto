@@ -1,7 +1,7 @@
 'use strict';
 
 const initialAuthUrl=new URL(location.href),initialAuthHash=new URLSearchParams(location.hash.replace(/^#/,''));
-const juntoOnline={client:null,user:null,profile:null,configured:false,syncTimer:null,syncing:false,syncQueued:false,recoveryPending:initialAuthUrl.searchParams.get('auth_action')==='recovery'||initialAuthUrl.searchParams.get('type')==='recovery'||initialAuthHash.get('type')==='recovery'};
+const juntoOnline={client:null,user:null,profile:null,configured:false,syncTimer:null,syncing:false,syncQueued:false,restoring:false,restoredFor:null,recoveryPending:initialAuthUrl.searchParams.get('auth_action')==='recovery'||initialAuthUrl.searchParams.get('type')==='recovery'||initialAuthHash.get('type')==='recovery'};
 const saveLocal=save;
 const tripScopedKeys=['people','payments','houses','expenses','families','fundYields','fundSnapshots','shoppingItems','consumptionGroups'];
 const groupScopedKeys=['members','groupFamilies','relationships','peopleMapLayouts','roomPreferences'];
@@ -103,15 +103,26 @@ async function createAdminInvite(){
 }
 function captureInvite(){const url=new URL(location.href),token=url.searchParams.get('invite');if(token){localStorage.setItem('junto_pending_invite',token);url.searchParams.delete('invite');history.replaceState({},'',`${url.pathname}${url.search}${url.hash}`)}}
 async function acceptPendingInvite(){
-  const token=localStorage.getItem('junto_pending_invite');if(!token||!juntoOnline.user)return;const {data,error}=await juntoOnline.client.rpc('accept_trip_invite',{raw_token:token});
-  if(error){localStorage.removeItem('junto_pending_invite');history.replaceState({},'',location.pathname);return toast('Este convite é inválido, expirou ou já foi usado.','error')}
-  localStorage.removeItem('junto_pending_invite');history.replaceState({},'',location.pathname);await loadOnlineTrip(data.trip_id);toast('Convite aceito. Você agora administra esta viagem.');
+  const token=localStorage.getItem('junto_pending_invite');if(!token||!juntoOnline.user)return false;const {data,error}=await juntoOnline.client.rpc('accept_trip_invite',{raw_token:token});
+  if(error){localStorage.removeItem('junto_pending_invite');history.replaceState({},'',location.pathname);toast('Este convite é inválido, expirou ou já foi usado.','error');return false}
+  localStorage.removeItem('junto_pending_invite');history.replaceState({},'',location.pathname);await loadOnlineTrip(data.trip_id);toast('Convite aceito. Você agora administra esta viagem.');return true;
+}
+async function restoreOnlineTrips(){
+  const userId=juntoOnline.user?.id;if(!userId||juntoOnline.restoring||juntoOnline.restoredFor===userId||activeOnlineLink())return;
+  juntoOnline.restoring=true;const {data,error}=await juntoOnline.client.from('trip_snapshots').select('trip_id,payload,revision,updated_at').order('updated_at',{ascending:false});juntoOnline.restoring=false;juntoOnline.restoredFor=userId;
+  if(error){console.error(error);toast('Você entrou, mas não foi possível carregar suas viagens online.','error');return}
+  if(data?.length===1){const item=data[0];try{mergeOnlineBundle(item.payload,item.trip_id,item.revision);toast('Sua viagem online foi carregada.')}catch(loadError){console.error(loadError);toast('A viagem online encontrada é incompatível.','error')}return}
+  if(data?.length>1)onlineTripsModal();
+  if(!data?.length)toast('Conta conectada, mas nenhuma viagem online foi encontrada.','error');
+}
+async function resumeAuthenticatedAccount(){
+  await loadOnlineProfile();if(juntoOnline.recoveryPending){passwordUpdateModal();return}if(await acceptPendingInvite())return;await restoreOnlineTrips();
 }
 async function initializeOnlineAccount(){
   captureInvite();juntoOnline.configured=onlineReady();if(!juntoOnline.configured){updateAccountButton();return}
   const config=onlineConfig();juntoOnline.client=window.supabase.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});const {data}=await juntoOnline.client.auth.getSession();juntoOnline.user=data.session?.user||null;
-  if(juntoOnline.user){await loadOnlineProfile();if(juntoOnline.recoveryPending)setTimeout(passwordUpdateModal,0);else await acceptPendingInvite()}else{updateAccountButton();if(localStorage.getItem('junto_pending_invite'))setTimeout(accountModal,350)}
-  juntoOnline.client.auth.onAuthStateChange((authEvent,session)=>{juntoOnline.user=session?.user||null;juntoOnline.profile=null;if(authEvent==='PASSWORD_RECOVERY')juntoOnline.recoveryPending=true;if(juntoOnline.user)setTimeout(async()=>{await loadOnlineProfile();if(juntoOnline.recoveryPending)passwordUpdateModal();else await acceptPendingInvite()},0);else updateAccountButton()});
+  if(juntoOnline.user)await resumeAuthenticatedAccount();else{updateAccountButton();if(localStorage.getItem('junto_pending_invite'))setTimeout(accountModal,350)}
+  juntoOnline.client.auth.onAuthStateChange((authEvent,session)=>{juntoOnline.user=session?.user||null;juntoOnline.profile=null;if(authEvent==='PASSWORD_RECOVERY')juntoOnline.recoveryPending=true;if(juntoOnline.user)setTimeout(resumeAuthenticatedAccount,0);else{juntoOnline.restoredFor=null;updateAccountButton()}});
 }
 
 document.addEventListener('click',async event=>{
