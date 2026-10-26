@@ -44,7 +44,7 @@ function quickPersist(){
 }
 
 document.addEventListener('click',event=>{
-  if(event.target.closest('[data-new-trip]')){event.preventDefault();event.stopImmediatePropagation();quickMeta={name:'',region:'',groupId:db.activeGroupId||db.groups[0]?.id||'',groupName:''};quickPeople=[];quickKnown.clear();db.page='viagem';commit();return}
+  if(event.target.closest('[data-new-trip]')){event.preventDefault();event.stopImmediatePropagation();quickMeta={name:'',region:'',groupId:db.activeGroupId||db.groups[0]?.id||'',groupName:''};quickPeople=[];quickKnown.clear();db.page='viagem';if('simplePage' in db)db.legacyPage='viagem';commit();return}
   if(event.target.closest('[data-dismiss-quick-success]')){quickJustCreated='';render();return}
   if(event.target.closest('[data-quick-add]')){quickSyncMeta();const form=$('#quick-trip'),name=form.elements.quickPersonName.value.trim(),type=form.elements.quickPersonType.value,age=form.elements.quickPersonAge.value;if(!name)return toast('Informe o nome da pessoa.','error');if(age!==''&&(!Number.isInteger(Number(age))||Number(age)<0||Number(age)>120))return toast('Informe uma idade entre 0 e 120.','error');if(quickPeople.some(person=>quickNorm(person.name)===quickNorm(name)))return toast('Esta pessoa já está na lista.','error');quickPeople.push({name,type,age});render();$('#quickPersonName')?.focus();return}
   const remove=event.target.closest('[data-quick-remove]');if(remove){quickSyncMeta();quickPeople.splice(Number(remove.dataset.quickRemove),1);render();$('#quickPersonName')?.focus();return}
