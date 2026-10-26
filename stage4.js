@@ -8,7 +8,7 @@ function migrateV5(data){
   data.trips.forEach(current=>{
     if(!current.groupId){
       const groupId='group-'+current.id;
-      if(!data.groups.some(group=>group.id===groupId))data.groups.push({id:groupId,name:current.name||'Grupo da viagem',description:'Criado a partir de uma viagem existente.',createdAt:'',active:true});
+      if(!data.groups.some(group=>group.id===groupId))data.groups.push({id:groupId,name:current.name||'Grupo do planejamento',description:'Criado a partir de um planejamento existente.',createdAt:'',active:true});
       current.groupId=groupId;
     }
   });
