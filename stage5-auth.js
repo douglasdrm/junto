@@ -7,6 +7,17 @@ const groupScopedKeys=['members','groupFamilies','relationships','peopleMapLayou
 
 function onlineConfig(){return window.JUNTO_SUPABASE_CONFIG||{}}
 function onlineReady(){const config=onlineConfig();return Boolean(config.url&&config.publishableKey&&window.supabase?.createClient)}
+function pendingInvite(){return localStorage.getItem('junto_pending_invite')||''}
+function authReturnUrl(){const url=new URL(location.pathname,location.origin),token=pendingInvite();if(token)url.searchParams.set('invite',token);return url.toString()}
+function authMessage(error,fallback='Não foi possível continuar.'){
+  const message=String(error?.message||'').toLowerCase();
+  if(message.includes('invalid login credentials'))return 'E-mail ou senha incorretos.';
+  if(message.includes('email not confirmed'))return 'Confirme seu e-mail antes de entrar.';
+  if(message.includes('user already registered'))return 'Este e-mail já possui uma conta. Entre com sua senha.';
+  if(message.includes('password should be'))return 'A senha precisa ter pelo menos 6 caracteres.';
+  if(message.includes('rate limit'))return 'Muitas tentativas seguidas. Aguarde um pouco e tente novamente.';
+  return fallback;
+}
 function onlineLinks(){if(!db.onlineTrips||typeof db.onlineTrips!=='object')db.onlineTrips={};return db.onlineTrips}
 function activeOnlineLink(){return onlineLinks()[db.active]||null}
 function cloneOnline(value){return JSON.parse(JSON.stringify(value))}
@@ -33,9 +44,22 @@ function tripOnlinePanel(){
 }
 function accountModal(){
   if(!juntoOnline.configured){modal('Conta Juntô','A estrutura online está pronta para ser conectada.',`<div class="account-state"><div class="account-state-icon">☁</div><strong>Supabase ainda não configurado</strong><p>O modo local continua ativo e seus dados permanecem neste navegador. Para ativar contas, informe a URL e a chave publicável do projeto em <code>supabase/config.js</code>.</p></div><div class="actions"><button class="button primary" data-close>Continuar no modo local</button></div>`);return}
-  if(!juntoOnline.user){modal('Entrar no Juntô','Receba um link seguro no seu e-mail. Não é necessário criar senha.',`<form id="online-login"><div class="stack">${field('onlineEmail','Seu e-mail','email','','required autocomplete="email" placeholder="voce@exemplo.com"')}<div class="notice info">Enviaremos um link de acesso. Se você abriu um convite, ele será aceito depois do login.</div><button class="button primary">Enviar link para entrar</button></div></form>`);return}
+  if(!juntoOnline.user){authModal('login');return}
   const name=juntoOnline.profile?.display_name||'',phone=juntoOnline.profile?.phone||'',email=juntoOnline.user.email||'';
   modal('Minha conta','Conta online conectada.',`${tripOnlinePanel()}<form id="online-profile"><div class="stack">${field('onlineName','Nome de exibição','text',name,'required maxlength="100"')}${field('onlinePhone','Telefone (opcional)','tel',phone,'autocomplete="tel" maxlength="30" placeholder="(00) 00000-0000"')}${field('onlineAccountEmail','E-mail','email',email,'disabled')}<div class="account-connected"><i></i><span>Conta online ativa</span></div><button class="button primary">Salvar perfil</button><button type="button" class="button ghost" data-online-signout>Sair da conta</button></div></form>`)
+}
+function authModal(mode='login'){
+  const hasInvite=Boolean(pendingInvite()),inviteNotice=hasInvite?'<div class="notice info">Seu convite está guardado. Após entrar, a viagem compartilhada será aberta automaticamente.</div>':'';
+  if(mode==='signup'){
+    modal('Criar conta','Use seu e-mail e escolha uma senha para entrar no Juntô.',`<form id="online-signup"><div class="stack">${field('onlineSignupName','Seu nome','text','','required maxlength="100" autocomplete="name"')}${field('onlineSignupEmail','Seu e-mail','email','','required autocomplete="email" placeholder="voce@exemplo.com"')}${field('onlineSignupPassword','Crie uma senha','password','','required minlength="6" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"')}${inviteNotice}<button class="button primary">Criar minha conta</button><button type="button" class="button ghost" data-auth-mode="login">Já tenho conta</button></div></form>`);return;
+  }
+  if(mode==='forgot'){
+    modal('Recuperar senha','Enviaremos um link para você escolher uma nova senha.',`<form id="online-forgot"><div class="stack">${field('onlineForgotEmail','Seu e-mail','email','','required autocomplete="email" placeholder="voce@exemplo.com"')}<button class="button primary">Enviar link de recuperação</button><button type="button" class="button ghost" data-auth-mode="login">Voltar para entrar</button></div></form>`);return;
+  }
+  modal('Entrar no Juntô','Acesse suas viagens próprias e compartilhadas.',`<form id="online-login"><div class="stack">${field('onlineEmail','Seu e-mail','email','','required autocomplete="email" placeholder="voce@exemplo.com"')}${field('onlinePassword','Sua senha','password','','required minlength="6" autocomplete="current-password"')}${inviteNotice}<button class="button primary">Entrar</button><button type="button" class="button secondary auth-google" data-google-login><span class="google-mark">G</span> Entrar com Google</button><div class="auth-links"><button type="button" data-auth-mode="signup">Criar uma conta</button><button type="button" data-auth-mode="forgot">Esqueci minha senha</button></div></div></form>`);
+}
+function passwordUpdateModal(){
+  modal('Criar nova senha','Escolha a senha que será usada nos próximos acessos.',`<form id="online-password-update"><div class="stack">${field('onlineNewPassword','Nova senha','password','','required minlength="6" autocomplete="new-password"')}${field('onlineNewPasswordConfirm','Confirmar nova senha','password','','required minlength="6" autocomplete="new-password"')}<button class="button primary">Salvar nova senha</button></div></form>`);
 }
 async function loadOnlineProfile(){if(!juntoOnline.user)return;const {data,error}=await juntoOnline.client.from('profiles').select('id,display_name,phone,avatar_path,platform_owner').eq('id',juntoOnline.user.id).single();if(!error)juntoOnline.profile=data;updateAccountButton()}
 async function importActiveTrip(){
@@ -75,7 +99,7 @@ async function createAdminInvite(){
   const inviteUrl=`${location.origin}${location.pathname}?invite=${encodeURIComponent(data)}`,message=encodeURIComponent(`Você foi convidado para administrar a viagem “${trip().name}” no Juntô: ${inviteUrl}`);
   modal('Convidar administrador','Este acesso permite ver e alterar toda a viagem.',`<div class="stack"><div class="notice warn">Envie somente para uma pessoa de confiança. O link expira em 7 dias e funciona uma única vez.</div><label class="field"><span>Link do convite</span><input id="adminInviteUrl" value="${esc(inviteUrl)}" readonly></label><div class="actions"><button type="button" class="button primary" data-copy-admin-invite>Copiar link</button><a class="button secondary" href="https://wa.me/?text=${message}" target="_blank" rel="noopener">Enviar no WhatsApp</a></div></div>`);
 }
-function captureInvite(){const token=new URLSearchParams(location.search).get('invite');if(token){localStorage.setItem('junto_pending_invite',token);history.replaceState({},'',location.pathname)}}
+function captureInvite(){const url=new URL(location.href),token=url.searchParams.get('invite');if(token){localStorage.setItem('junto_pending_invite',token);url.searchParams.delete('invite');history.replaceState({},'',`${url.pathname}${url.search}${url.hash}`)}}
 async function acceptPendingInvite(){
   const token=localStorage.getItem('junto_pending_invite');if(!token||!juntoOnline.user)return;const {data,error}=await juntoOnline.client.rpc('accept_trip_invite',{raw_token:token});
   if(error){localStorage.removeItem('junto_pending_invite');history.replaceState({},'',location.pathname);return toast('Este convite é inválido, expirou ou já foi usado.','error')}
@@ -85,18 +109,23 @@ async function initializeOnlineAccount(){
   captureInvite();juntoOnline.configured=onlineReady();if(!juntoOnline.configured){updateAccountButton();return}
   const config=onlineConfig();juntoOnline.client=window.supabase.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});const {data}=await juntoOnline.client.auth.getSession();juntoOnline.user=data.session?.user||null;
   if(juntoOnline.user){await loadOnlineProfile();await acceptPendingInvite()}else{updateAccountButton();if(localStorage.getItem('junto_pending_invite'))setTimeout(accountModal,350)}
-  juntoOnline.client.auth.onAuthStateChange((_event,session)=>{juntoOnline.user=session?.user||null;juntoOnline.profile=null;if(juntoOnline.user)setTimeout(async()=>{await loadOnlineProfile();await acceptPendingInvite()},0);else updateAccountButton()});
+  juntoOnline.client.auth.onAuthStateChange((authEvent,session)=>{juntoOnline.user=session?.user||null;juntoOnline.profile=null;if(authEvent==='PASSWORD_RECOVERY')setTimeout(passwordUpdateModal,0);if(juntoOnline.user)setTimeout(async()=>{await loadOnlineProfile();await acceptPendingInvite()},0);else updateAccountButton()});
 }
 
 document.addEventListener('click',async event=>{
   if(event.target.closest('[data-account]')){accountModal();return}if(event.target.closest('[data-online-signout]')){await juntoOnline.client?.auth.signOut();closeModal();toast('Você saiu da conta. O modo local continua disponível.');return}
+  const authMode=event.target.closest('[data-auth-mode]');if(authMode){authModal(authMode.dataset.authMode);return}
+  if(event.target.closest('[data-google-login]')){const {error}=await juntoOnline.client.auth.signInWithOAuth({provider:'google',options:{redirectTo:authReturnUrl()}});if(error)toast(authMessage(error,'Não foi possível entrar com o Google.'),'error');return}
   if(event.target.closest('[data-online-import]')){await importActiveTrip();return}if(event.target.closest('[data-admin-invite]')){await createAdminInvite();return}if(event.target.closest('[data-online-trips]')){await onlineTripsModal();return}
   const open=event.target.closest('[data-open-online-trip]');if(open){await loadOnlineTrip(open.dataset.openOnlineTrip);return}
   if(event.target.closest('[data-copy-admin-invite]')){const input=document.querySelector('#adminInviteUrl'),value=input?.value;try{await navigator.clipboard.writeText(value);toast('Link copiado.')}catch{input?.select();toast('Selecione e copie o link.')}return}
 },true);
 document.addEventListener('submit',async event=>{
-  if(!['online-login','online-profile'].includes(event.target.id))return;event.preventDefault();event.stopImmediatePropagation();const form=new FormData(event.target);
-  if(event.target.id==='online-login'){const email=String(form.get('onlineEmail')||'').trim().toLowerCase(),redirectTo=location.href.split('#')[0].split('?')[0];const {error}=await juntoOnline.client.auth.signInWithOtp({email,options:{emailRedirectTo:redirectTo,data:{display_name:email.split('@')[0]}}});if(error)return toast('Não foi possível enviar o link. Confira o e-mail e a configuração.','error');closeModal();toast('Link enviado. Confira seu e-mail.');return}
+  if(!['online-login','online-signup','online-forgot','online-password-update','online-profile'].includes(event.target.id))return;event.preventDefault();event.stopImmediatePropagation();const form=new FormData(event.target);
+  if(event.target.id==='online-login'){const email=String(form.get('onlineEmail')||'').trim().toLowerCase(),password=String(form.get('onlinePassword')||'');const {error}=await juntoOnline.client.auth.signInWithPassword({email,password});if(error)return toast(authMessage(error,'Não foi possível entrar agora.'),'error');closeModal();toast('Você entrou na sua conta.');return}
+  if(event.target.id==='online-signup'){const name=String(form.get('onlineSignupName')||'').trim(),email=String(form.get('onlineSignupEmail')||'').trim().toLowerCase(),password=String(form.get('onlineSignupPassword')||'');const {data,error}=await juntoOnline.client.auth.signUp({email,password,options:{emailRedirectTo:authReturnUrl(),data:{display_name:name}}});if(error)return toast(authMessage(error,'Não foi possível criar a conta.'),'error');closeModal();if(data.session)toast('Conta criada. Você já está conectado.');else toast('Conta criada. Confirme o e-mail para entrar.');return}
+  if(event.target.id==='online-forgot'){const email=String(form.get('onlineForgotEmail')||'').trim().toLowerCase();const {error}=await juntoOnline.client.auth.resetPasswordForEmail(email,{redirectTo:authReturnUrl()});if(error)return toast(authMessage(error,'Não foi possível enviar a recuperação.'),'error');closeModal();toast('Enviamos o link de recuperação para seu e-mail.');return}
+  if(event.target.id==='online-password-update'){const password=String(form.get('onlineNewPassword')||''),confirmation=String(form.get('onlineNewPasswordConfirm')||'');if(password!==confirmation)return toast('As senhas não são iguais.','error');const {error}=await juntoOnline.client.auth.updateUser({password});if(error)return toast(authMessage(error,'Não foi possível atualizar a senha.'),'error');closeModal();toast('Senha atualizada com sucesso.');return}
   const displayName=String(form.get('onlineName')||'').trim(),phone=String(form.get('onlinePhone')||'').trim()||null;const {data,error}=await juntoOnline.client.from('profiles').update({display_name:displayName,phone,updated_at:new Date().toISOString()}).eq('id',juntoOnline.user.id).select().single();if(error)return toast('Não foi possível atualizar o perfil.','error');juntoOnline.profile=data;closeModal();updateAccountButton();toast('Perfil atualizado.');
 },true);
 

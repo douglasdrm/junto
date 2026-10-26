@@ -53,6 +53,8 @@ where id = (select id from auth.users where email = 'EMAIL_DO_PRIMEIRO_ORGANIZAD
 
 Depois de entrar, abra “Minha conta” e use “Levar viagem para minha conta”. A partir daí, alterações dessa viagem são sincronizadas. O botão “Convidar administrador” cria um link de uso único, válido por sete dias, que pode ser enviado pelo WhatsApp.
 
+O acesso aceita e-mail e senha, recuperação de senha e Google. Para o Google, habilite o provedor em **Authentication → Providers → Google**, informe as credenciais OAuth do Google e cadastre no Google a URL de callback exibida pelo Supabase. Mantenha também a URL pública do aplicativo na lista de URLs de redirecionamento permitidas. O convite é preservado durante o login e aceito automaticamente depois que a conta é autenticada.
+
 Nunca coloque a `secret key` ou a chave `service_role` em arquivos servidos pelo site. Somente a viagem escolhida é enviada; as demais continuam locais até serem conectadas individualmente.
 
 ## Limitações importantes
