@@ -97,90 +97,14 @@ function syncExpensePayments(item){if(!Array.isArray(item.expensePayments))item.
 function manageExpensePaymentsModal(expenseId){const item=db.expenses.find(value=>value.id===expenseId&&value.trip===db.active);if(!item)return toast('Gasto não encontrado.','error');const payments=normalizeExpensePayments(item),rows=payments.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(payment=>`<div class="expense-payment-record"><div><strong>${cash(payment.amountCents)}</strong><small>${date(payment.date)}</small></div><div><button type="button" class="button ghost small" data-edit-expense-payment="${item.id}|${payment.id}">Editar</button><button type="button" class="button danger small" data-cancel-expense-payment="${item.id}|${payment.id}">Cancelar pagamento</button></div></div>`).join('')||'<p class="help">Nenhum pagamento registrado.</p>';modal('Pagamentos registrados',esc(item.description),`<div class="expense-payment-summary"><span>Previsto <b>${cash(item.plannedCents)}</b></span><span>Realizado <b>${cash(item.paidCents)}</b></span><span>Falta <b>${cash(Math.max(0,item.plannedCents-item.paidCents))}</b></span></div><div class="expense-payment-records">${rows}</div><div class="actions"><button type="button" class="button secondary" data-close>Fechar</button></div>`)}
 function editExpensePaymentModal(expenseId,paymentId){const item=db.expenses.find(value=>value.id===expenseId&&value.trip===db.active);if(!item)return;const payment=normalizeExpensePayments(item).find(value=>value.id===paymentId);if(!payment)return toast('Pagamento não encontrado.','error');const others=item.expensePayments.filter(value=>value.id!==paymentId).reduce((sum,value)=>sum+value.amountCents,0),maximum=Math.max(0,item.plannedCents-others);modal('Editar pagamento',esc(item.description),`<form id="simple-expense-payment-edit" data-expense="${item.id}" data-payment="${payment.id}">${field('expenseEditAmount','Valor (R$)','number',inputMoney(payment.amountCents),'required min="0.01" max="'+inputMoney(maximum)+'" step="0.01"')}${field('expenseEditDate','Data do pagamento','date',payment.date||today(),'required')}<div class="actions"><button type="button" class="button ghost" data-manage-expense-payments="${item.id}">Voltar</button><button class="button primary">Salvar alteração</button></div></form>`)}
 
-const SHOPPING_SEED_2026=`51|1 garrafa|1589|1|1589
-adoçante||875|1|875
-Açúcar|1 pacote|399|1|399
-água com gás||299|2|598
-Alho|4 cabeças|0|1|0
-Arroz|1KG|379|2|758
-banana||1837|1|1837
-Batata|5 unid|608|1|608
-Batata Palha|1 pacote grande|2185|2|4370
-baygon|1|1290|1|1290
-Bolsas||180|1|180
-Bombril||199|1|199
-Café|500g|2990|1|2990
-calabresa|300g|676|1|676
-Carne Contra Filé|5kg|26119|1|26119
-Carne de Porco|1kg|4557|1|4557
-Cebola|6 unidades|353|1|353
-Cenoura|4 unidades|155|1|155
-coador de cafe||745|1|745
-Coca 2,5l|1 garrafa|1059|1|1059
-copo descartavel||499|1|499
-coquinha|1 garrafa|195|4|780
-coracao|1kg|2998|1|2998
-Coxa e sibcx desossada|1kg|1898|2|3796
-creme de cebola||599|1|599
-Creme de Leite|4|199|6|1194
-Desinfetante|1 unidade|899|1|899
-Detergente|2 unid|199|2|398
-Ervilha|1 lata|249|1|249
-Esponja|PCT 4|329|1|329
-farinha de trigo|1kg|399|2|798
-Farofa|1 pacote grande|539|2|1078
-Feijão|1 unidade|499|2|998
-fermento seco|10g|149|3|447
-Frango|1kg|1898|2|3796
-frango desfiado|500g|2198|2|4396
-Gelatina|4 unidades (uva, morango)|199|4|796
-guarana|2l|719|1|799
-Icetea|1,5 litro|770|2|1540
-Ketchup|1 pequeno|399|1|399
-laranja||586|1|586
-Leite|6 unid|387|6|2322
-leite condensado||499|2|998
-Limão||476|1|476
-Linguiça|700gr|1798|2|3596
-Linguiça de frango|700g|1680|1|1680
-Lipton||580|1|580
-maçã||795|2|1590
-Macarrão espaguete|500g|349|3|1047
-Macarrão Parafuso|500g|395|2|790
-Maionese|1 pote grande|1989|1|1989
-maracuja|10|3025|1|3025
-Margarina|1kg|1790|1|1790
-Milho|2 latas|339|2|678
-Milho de Pipoca|1 saco|419|1|419
-molho pizza||179|3|537
-Molho Tomate|300g|119|3|357
-Mortadela Defumada|360 gramas|759|2|1518
-Mostarda|1 pequeno|499|1|499
-muçarela pizza|2kg|6658|0|0
-Nescau|1 saco|1199|1|1199
-Nuggets|saco|3990|1|3990
-Óleo|1l|799|2|1598
-orégano||159|1|159
-Ovo|30|1335|2|2670
-Pão Cachorro Quente|Comprar na padaria|0|1|0
-Pão de Forma|pacote|599|4|2396
-Papel Higiênico|pacotes com 4|790|2|1580
-Papel Toalha|1 pacote (2 unidades)|529|2|1058
-perfex||469|1|469
-Presunto|600 gramas|1705|1|1705
-Queijo Coalho||4411|1|4411
-Queijo Prato|1 kg|855|6|5130
-Requeijão|2 potes|699|2|1398
-sabão em barra|1 unidade|199|1|199
-Saco de Lixo|15 sacos (100 litros)|1435|1|1435
-Sal|1 pacote|229|1|229
-Sal grosso|1 pacote|229|1|229
-salaminho|300gr|3317|1|3317
-Salsicha|1,5kg|1049|3|3147
-suco||550|1|550
-Suco sei la|1 litro|465|1|465
-Toddy|1 pequeno|1048|1|1048`.split('\n').map(line=>{const [name,unit,unitPriceCents,quantity,actualTotalCents]=line.split('|');return {name,unit,unitPriceCents:Number(unitPriceCents),quantity:Number(quantity),actualTotalCents:Number(actualTotalCents)}});
-function importShoppingSeed2026(){if(!db.active||db.shoppingImports.seed2026TripId)return;const alreadyExists=tripShopping().some(item=>item.year===2026);if(!alreadyExists){SHOPPING_SEED_2026.forEach(item=>db.shoppingItems.push({id:uid(),trip:db.active,year:2026,...item,purchased:true,leftover:false,consumptionGroupId:'',imported:true,createdAt:new Date().toISOString()}));db.shoppingYear=2026}db.shoppingImports.seed2026TripId=db.active;save()}
+function removeLegacySharedShopping(data=db){
+  if(!Array.isArray(data.shoppingItems))data.shoppingItems=[];
+  const before=data.shoppingItems.length;
+  data.shoppingItems=data.shoppingItems.filter(item=>item.imported!==true);
+  if(data.shoppingImports?.seed2026TripId)delete data.shoppingImports.seed2026TripId;
+  return before-data.shoppingItems.length;
+}
+if(removeLegacySharedShopping()>0)save();
 function shoppingYears(){return [...new Set(tripShopping().map(item=>item.year))].sort((a,b)=>b-a)}
 function shoppingPriceChange(item){const previous=Number(item.previousUnitPriceCents)||0,current=Number(item.unitPriceCents)||0;if(!previous)return {label:'Sem referência',className:'neutral'};const difference=current-previous,percent=Math.round(difference/previous*100);return {label:`${difference>=0?'+':''}${cash(difference)} · ${difference>=0?'+':''}${percent}%`,className:difference>0?'up':difference<0?'down':'same'}}
 function shoppingItemModal(item={}){const year=item.year||Number(db.shoppingYear)||shoppingYears()[0]||new Date().getFullYear(),groups=tripConsumptionGroups(),computed=(item.quantity||0)*(item.unitPriceCents||0),explicitTotal=item.actualTotalCents!=null&&item.actualTotalCents!==computed?inputMoney(item.actualTotalCents):'';modal(item.id?'Editar item':'Adicionar item','Registre o preço atual e preserve a referência do ano anterior.',`<form id="shopping-item" data-id="${item.id||''}"><div class="stack"><div class="form-grid">${field('shoppingYear','Ano','number',year,'required min="2000" max="2100" step="1"')}${select('shoppingStatus','Situação',[['purchased','Comprado'],['planned','Planejado']],item.purchased===false?'planned':'purchased')}</div>${field('shoppingName','Item','text',item.name||'','required maxlength="100"')}${field('shoppingUnit','Unidade / observação','text',item.unit||'','maxlength="80" placeholder="Ex.: pacote de 1 kg"')}<div class="form-grid">${field('shoppingQuantity','Quantidade','number',item.quantity??1,'required min="0" step="0.01"')}${field('shoppingPrice','Preço unitário atual (R$)','number',item.unitPriceCents!=null?inputMoney(item.unitPriceCents):'','min="0" step="0.01"')}${field('shoppingPreviousYear','Ano da referência anterior','number',item.referenceYear||year-1,'min="2000" max="2100" step="1"')}${field('shoppingPreviousPrice','Preço unitário anterior (R$)','number',item.previousUnitPriceCents!=null?inputMoney(item.previousUnitPriceCents):'','min="0" step="0.01" placeholder="Opcional"')}</div>${field('shoppingTotal','Total efetivo (R$)','number',explicitTotal,'min="0" step="0.01" placeholder="Calculado automaticamente"')}${select('shoppingConsumptionGroup','Grupo de consumo',[['','Todos os viajantes'],...groups.map(group=>[group.id,group.name])],item.consumptionGroupId||'')}<label class="check"><input type="checkbox" name="shoppingLeftover" ${item.leftover?'checked':''}> Sobrou depois da viagem</label><div class="actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary">Salvar item</button></div></div></form>`)}
@@ -203,7 +127,7 @@ function financeSummary(){
 }
 function financeExpenseSection(group){const items=expenses().filter(item=>expenseGroup(item)===group),labels={aluguel:'Gastos de aluguel',extras:'Despesas extras'},notes={aluguel:'Casa, pousada e parcelas da hospedagem.',extras:'Luz, limpeza, transporte e outros custos da viagem.'},category=group==='aluguel'?'aluguel':'outros';return `<section class="card expense-ledger"><div class="section-head"><div><h2>${labels[group]}</h2><p>${notes[group]}</p></div><button class="button primary small" data-add-finance-expense="${category}">+ Adicionar</button></div><div class="expense-list">${financeExpenseRows(items)}</div></section>`}
 function marketPurchaseItemRow(item={}){return `<div class="market-purchase-item"><input name="marketPurchaseItemName" value="${esc(item.name||'')}" placeholder="Item ou grupo de itens"><input type="number" name="marketPurchaseItemAmount" value="${item.amountCents!=null?inputMoney(item.amountCents):''}" min="0.01" step="0.01" placeholder="Valor"><button type="button" class="button danger small" data-remove-market-purchase-item>×</button></div>`}
-function marketExtraPurchaseModal(item={}){const detailed=item.marketDetailMode==='items',items=item.marketItems?.length?item.marketItems:[{}];modal(item.id?'Editar compra extra':'Compra extra no mercado','Registre quem pagou. O reembolso ficará pendente até ser confirmado.',`<form id="market-extra-purchase" data-id="${item.id||''}"><div class="stack">${field('marketPurchaseBuyer','Quem fez a compra','text',item.purchasedBy||'','required maxlength="80" placeholder="Ex.: Douglas"')}${field('marketPurchaseDate','Data da compra','date',item.purchaseDate||item.date||today(),'required')}${field('marketPurchaseTotal','Valor total (R$)','number',item.plannedCents!=null?inputMoney(item.plannedCents):'','required min="0.01" step="0.01"')}${select('marketPurchaseMode','Como registrar',[['total','Somente o total'],['items','Discriminar os itens']],detailed?'items':'total')}<div class="market-purchase-items ${detailed?'show':''}" data-market-purchase-items><div class="section-head compact"><div><strong>Itens comprados</strong><p>Opcionalmente detalhe o que foi comprado.</p></div><button type="button" class="button ghost small" data-add-market-purchase-item>+ Item</button></div><div data-market-purchase-item-list>${items.map(marketPurchaseItemRow).join('')}</div><p class="installment-balance" data-market-purchase-total></p></div>${field('marketPurchaseNote','Observação','text',item.note||'','maxlength="160" placeholder="Ex.: compra emergencial durante a viagem"')}<div class="actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary">Salvar compra para reembolso</button></div></div></form>`);updateMarketPurchaseForm($('#market-extra-purchase'))}
+function marketExtraPurchaseModal(item={}){const detailed=item.marketDetailMode==='items',items=item.marketItems?.length?item.marketItems:[{}];modal(item.id?'Editar compra extra':'Compra extra no mercado','Registre quem pagou. O reembolso ficará pendente até ser confirmado.',`<form id="market-extra-purchase" data-id="${item.id||''}"><div class="stack">${field('marketPurchaseBuyer','Quem fez a compra','text',item.purchasedBy||'','required maxlength="80" placeholder="Nome da pessoa"')}${field('marketPurchaseDate','Data da compra','date',item.purchaseDate||item.date||today(),'required')}${field('marketPurchaseTotal','Valor total (R$)','number',item.plannedCents!=null?inputMoney(item.plannedCents):'','required min="0.01" step="0.01"')}${select('marketPurchaseMode','Como registrar',[['total','Somente o total'],['items','Discriminar os itens']],detailed?'items':'total')}<div class="market-purchase-items ${detailed?'show':''}" data-market-purchase-items><div class="section-head compact"><div><strong>Itens comprados</strong><p>Opcionalmente detalhe o que foi comprado.</p></div><button type="button" class="button ghost small" data-add-market-purchase-item>+ Item</button></div><div data-market-purchase-item-list>${items.map(marketPurchaseItemRow).join('')}</div><p class="installment-balance" data-market-purchase-total></p></div>${field('marketPurchaseNote','Observação','text',item.note||'','maxlength="160" placeholder="Ex.: compra emergencial durante a viagem"')}<div class="actions"><button type="button" class="button ghost" data-close>Cancelar</button><button class="button primary">Salvar compra para reembolso</button></div></div></form>`);updateMarketPurchaseForm($('#market-extra-purchase'))}
 function updateMarketPurchaseForm(form){if(!form)return;const detailed=form.elements.marketPurchaseMode.value==='items',box=form.querySelector('[data-market-purchase-items]');box?.classList.toggle('show',detailed);const total=cents(form.elements.marketPurchaseTotal.value||0)||0,itemTotal=[...form.querySelectorAll('[name="marketPurchaseItemAmount"]')].reduce((sum,input)=>sum+(cents(input.value)||0),0),message=form.querySelector('[data-market-purchase-total]'),difference=total-itemTotal;if(message){message.className=`installment-balance ${difference===0?'ok':'pending'}`;message.textContent=!detailed?'':difference===0?'Os itens conferem com o total.':difference>0?`Faltam ${cash(difference)} nos itens.`:`Os itens ultrapassam o total em ${cash(Math.abs(difference))}.`}}
 function financeMarketExtras(){const purchases=expenses().filter(item=>item.category==='mercado'&&item.marketPurchaseType==='extra'),pending=purchases.reduce((sum,item)=>sum+Math.max(0,item.plannedCents-item.paidCents),0),rows=purchases.slice().sort((a,b)=>(b.purchaseDate||b.date||'').localeCompare(a.purchaseDate||a.date||'')).map(item=>{const left=Math.max(0,item.plannedCents-item.paidCents),paid=left===0,details=item.marketItems?.length?` · ${item.marketItems.length} item${item.marketItems.length===1?'':'s'} discriminado${item.marketItems.length===1?'':'s'}`:' · somente total';return `<article class="market-extra-card ${paid?'is-paid':''}"><div><span class="expense-status ${paid?'paid':'planned'}">${paid?'Reembolsado':'A reembolsar'}</span><h3>${esc(item.purchasedBy||'Pessoa não informada')}</h3><p>Compra em ${date(item.purchaseDate||item.date)}${details}${item.note?` · ${esc(item.note)}`:''}</p></div><strong>${cash(item.plannedCents)}</strong><div class="record-actions">${!paid?`<button class="button primary small" data-pay-expense="${item.id}">Reembolsar</button>`:''}<button class="button ghost small" data-edit-market-purchase="${item.id}">Editar</button><button class="button danger small" data-delete-market-purchase="${item.id}">Excluir</button></div></article>`}).join('')||empty('🛒','Nenhuma compra extra','Quando alguém fizer uma compra durante a viagem, registre aqui para controlar o reembolso.');return `<div class="finance-flow-cards market-extra-metrics"><article class="finance-flow paid"><small>Total comprado durante a viagem</small><strong>${cash(purchases.reduce((sum,item)=>sum+item.plannedCents,0))}</strong><span>${purchases.length} compra${purchases.length===1?'':'s'} registrada${purchases.length===1?'':'s'}</span></article><article class="finance-flow future"><small>A reembolsar</small><strong>${cash(pending)}</strong><span>Valor que a caixinha ainda deve às pessoas</span></article></div><section class="card"><div class="section-head"><div><h2>Compras extras e reembolsos</h2><p>Registre somente o total ou discrimine os itens quando isso for útil.</p></div><button class="button primary small" data-add-market-purchase>+ Compra extra</button></div><div class="market-extra-list">${rows}</div></section>`}
 function financeMarketSection(){
@@ -392,5 +316,4 @@ document.addEventListener('submit',event=>{
   if(id==='simple-payment'){const amount=cents(form.get('simplePaymentAmount'));if(!Number.isInteger(amount)||amount<=0)return toast('Informe um valor maior que zero.','error');const personId=event.target.dataset.person,month=event.target.dataset.month,person=people().find(item=>item.id===personId),existing=db.payments.find(payment=>payment.id===event.target.dataset.id),mode=form.get('paymentAllocationMode'),manual=form.getAll('paymentMonth'),distribution=allocateContribution(personId,amount,mode,month,manual,existing?.id||'');if(mode==='manual'&&!manual.length)return toast('Selecione ao menos um mês ou use a opção de crédito.','error');const record={trip:db.active,payer:person.name,beneficiary:'Caixinha da viagem',amountCents:amount,value:amount/100,date:form.get('simplePaymentDate'),referenceMonth:distribution.monthAllocations[0]?.referenceMonth||month,note:'Contribuição mensal',allocations:[{participantId:personId,amountCents:amount}],monthAllocations:distribution.monthAllocations,creditCents:distribution.creditCents,allocationMode:mode,participantIds:[personId],competencyAllocations:[],unclassifiedCents:distribution.creditCents,source:{type:'simple-monthly',label:'Contribuição mensal'}};existing?Object.assign(existing,record):db.payments.push({id:uid(),...record});closeModal();commit(distribution.creditCents?`Pagamento salvo. ${cash(distribution.creditCents)} ficou como crédito.`:`Pagamento distribuído em ${distribution.monthAllocations.length} mensalidade${distribution.monthAllocations.length===1?'':'s'}.`);return}
 },true);
 
-importShoppingSeed2026();
 render();

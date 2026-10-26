@@ -4,8 +4,7 @@
    persistida por este módulo. */
 window.JuntoImport={
   schemaVersion:2,
-  expected2027Cents:510000,
-  requiredSheets:['PGTOS','RESUMO'],
+  requiredSheets:['PGTOS'],
   requiredFields:['payer','referenceMonth','amountCents','allocations','source'],
   normalize(value){return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase()},
   fingerprint(row){return row.source?.workbookId&&row.source?.cell?`${row.trip}|${row.source.workbookId}|${row.source.sheet}|${row.source.cell}`.toLowerCase():[row.trip,row.payer,row.date||'',row.referenceMonth,row.amountCents,row.source?.sheet,row.source?.cell||row.source?.row].join('|').toLowerCase()},
@@ -25,19 +24,18 @@ window.JuntoImport={
   },
   monthFromCell(cell){
     if(!cell)return null;const text=this.normalize(cell.w??cell.v),months={jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12};
-    for(const [key,month] of Object.entries(months))if(text.includes(key))return `2027-${String(month).padStart(2,'0')}`;
+    const detectedYear=text.match(/\b(20\d{2})\b/)?.[1]||String(new Date().getFullYear());
+    for(const [key,month] of Object.entries(months))if(text.includes(key))return `${detectedYear}-${String(month).padStart(2,'0')}`;
     if(cell.v instanceof Date)return `${cell.v.getFullYear()}-${String(cell.v.getMonth()+1).padStart(2,'0')}`;
     return null;
   },
   analyzeWorkbook(workbook,{fileName='',fileSize=0,lastModified=0}={}){
     const errors=[],warnings=[],unreadFormulas=[],rows=[],foundPeople=new Set(),monthlyColumns=[];
     const missing=this.requiredSheets.filter(name=>!workbook.SheetNames.includes(name));if(missing.length)errors.push({message:`Abas obrigatórias ausentes: ${missing.join(', ')}.`});
-    const sheet=workbook.Sheets.PGTOS,summary=workbook.Sheets.RESUMO;if(!sheet)return {valid:false,errors,warnings,rows,foundPeople:[],unreadFormulas,monthlyColumns,fileName};
-    const summaryEvidence={people:[],hasExpectedTotal:false,formulaCells:0};
-    if(summary){const summaryRange=XLSX.utils.decode_range(summary['!ref']||'A1:A1');for(let r=summaryRange.s.r;r<=summaryRange.e.r;r++)for(let c=summaryRange.s.c;c<=summaryRange.e.c;c++){const cell=summary[XLSX.utils.encode_cell({r,c})];if(!cell)continue;if(cell.f)summaryEvidence.formulaCells++;if(typeof cell.v==='number'&&Math.round(cell.v*100)===this.expected2027Cents)summaryEvidence.hasExpectedTotal=true;if(typeof cell.v==='string'){const value=this.normalize(cell.v);for(const name of ['douglas','samantha','alice','rogens'])if(value.includes(name)&&!summaryEvidence.people.includes(name))summaryEvidence.people.push(name)}}}
+    const sheet=workbook.Sheets.PGTOS;if(!sheet)return {valid:false,errors,warnings,rows,foundPeople:[],unreadFormulas,monthlyColumns,fileName};
     const range=XLSX.utils.decode_range(sheet['!ref']||'A1:A1');
-    for(let r=range.s.r;r<=Math.min(range.e.r,30);r++)for(let c=range.s.c;c<=range.e.c;c++){const month=this.monthFromCell(sheet[XLSX.utils.encode_cell({r,c})]);if(month&&month>='2027-02'&&month<='2027-10'&&!monthlyColumns.some(x=>x.c===c))monthlyColumns.push({c,month,headerCell:XLSX.utils.encode_cell({r,c})})}
-    if(!monthlyColumns.length)errors.push({message:'Não foi possível identificar as colunas de fevereiro a outubro de 2027 na aba PGTOS.'});
+    for(let r=range.s.r;r<=Math.min(range.e.r,30);r++)for(let c=range.s.c;c<=range.e.c;c++){const month=this.monthFromCell(sheet[XLSX.utils.encode_cell({r,c})]);if(month&&!monthlyColumns.some(x=>x.c===c))monthlyColumns.push({c,month,headerCell:XLSX.utils.encode_cell({r,c})})}
+    if(!monthlyColumns.length)errors.push({message:'Não foi possível identificar colunas mensais na aba PGTOS.'});
     const workbookId=[fileName,fileSize,lastModified].join(':');
     for(let r=range.s.r;r<=range.e.r;r++){
       const values=[];for(let c=range.s.c;c<(monthlyColumns[0]?.c??range.e.c+1);c++){const cell=sheet[XLSX.utils.encode_cell({r,c})];if(typeof cell?.v==='string'&&cell.v.trim())values.push(cell.v.trim())}
@@ -46,15 +44,12 @@ window.JuntoImport={
       if(!paymentCells.some(item=>typeof item.cell.v==='number'&&item.cell.v>0)){paymentCells.filter(item=>item.cell.f&&(typeof item.cell.v!=='number'||!Number.isFinite(item.cell.v))).forEach(item=>unreadFormulas.push({cell:item.address,formula:item.cell.f,message:'Fórmula sem resultado numérico armazenado.'}));continue}foundPeople.add(payer);
       paymentCells.forEach(({column,cell,address})=>{
         if(typeof cell.v!=='number'||!Number.isFinite(cell.v)||cell.v<=0){if(cell.f)unreadFormulas.push({cell:address,formula:cell.f,message:'Fórmula sem resultado numérico armazenado.'});return}
-        const amountCents=Math.round(cell.v*100);let beneficiaries=[payer];if(normalized==='douglas')beneficiaries=['Douglas','Samantha'];if(normalized==='alice')beneficiaries=['Alice','Rogens'];beneficiaries.forEach(name=>foundPeople.add(name));
+        const amountCents=Math.round(cell.v*100),beneficiaries=[payer];beneficiaries.forEach(name=>foundPeople.add(name));
         const parts=beneficiaries.map((name,index)=>({participantName:name,amountCents:Math.floor(amountCents/beneficiaries.length)+(index<amountCents%beneficiaries.length?1:0)}));
-        if((normalized==='douglas'||normalized==='alice')&&!cell.f)warnings.push({cell:address,message:`${payer}: regra de rateio aplicada conforme especificação, mas a célula de pagamento não contém fórmula.`});
         rows.push({payer,date:'',referenceMonth:column.month,amountCents,allocations:parts,source:{type:'xlsx',workbookId,sheet:'PGTOS',cell:address,row:r+1,column:XLSX.utils.encode_col(column.c),formula:cell.f||'',rawValue:cell.v,label:`${fileName} · PGTOS!${address}`}});
       });
     }
-    const gross=rows.reduce((sum,row)=>sum+row.amountCents,0);if(gross!==this.expected2027Cents)warnings.push({message:`Total de fevereiro a outubro: ${(gross/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}; esperado: R$ 5.100,00.`});
-    for(const name of ['douglas','samantha','alice','rogens'])if(!summaryEvidence.people.includes(name))warnings.push({message:`RESUMO: não foi localizada referência textual a ${name[0].toUpperCase()+name.slice(1)}.`});
-    if(!summaryEvidence.hasExpectedTotal)warnings.push({message:'RESUMO: não foi localizada uma célula numérica com o total exato de R$ 5.100,00.'});
-    return {version:2,fileName,workbookId,valid:errors.length===0,errors,warnings,unreadFormulas,rows,foundPeople:[...foundPeople],monthlyColumns,totalCents:gross,expectedCents:this.expected2027Cents,sheetNames:workbook.SheetNames,summaryEvidence};
+    const gross=rows.reduce((sum,row)=>sum+row.amountCents,0);
+    return {version:2,fileName,workbookId,valid:errors.length===0,errors,warnings,unreadFormulas,rows,foundPeople:[...foundPeople],monthlyColumns,totalCents:gross,sheetNames:workbook.SheetNames};
   }
 };

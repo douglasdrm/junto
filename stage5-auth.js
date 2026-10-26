@@ -32,6 +32,7 @@ function updateOnlineNote(){const note=document.querySelector('.side-note');if(!
 function updateAccountButton(){document.querySelectorAll('[data-account]').forEach(button=>{button.classList.toggle('is-online',Boolean(juntoOnline.user));const label=button.querySelector('span');if(label)label.textContent=juntoOnline.user?(juntoOnline.profile?.display_name||juntoOnline.user.email||'Minha conta'):'Entrar'});updateOnlineNote()}
 function showWelcome(){if(!welcomeEl||juntoOnline.user||sessionStorage.getItem('junto_welcome_skipped'))return;welcomeEl.hidden=false;document.body.classList.add('welcome-open');requestAnimationFrame(()=>welcomeEl.classList.add('is-visible'))}
 function hideWelcome(remember=false){if(!welcomeEl)return;if(remember)sessionStorage.setItem('junto_welcome_skipped','1');welcomeEl.classList.remove('is-visible');document.body.classList.remove('welcome-open');setTimeout(()=>{welcomeEl.hidden=true},420)}
+function openDemoWorkspace(){let demoState=migrate(clone(DEMO));for(const migration of [globalThis.migrateV3,globalThis.migrateV4,globalThis.migrateV5,globalThis.migrateV7,globalThis.migrateV8])if(typeof migration==='function')demoState=migration(demoState);db=demoState;saveLocal();render();hideWelcome(true);document.querySelector('#app')?.focus({preventScroll:true})}
 function tripBundleFor(localTripId){
   const current=(db.trips||[]).find(item=>item.id===localTripId);if(!current)return null;const groupId=current.groupId||db.activeGroupId,group=(db.groups||[]).find(item=>item.id===groupId)||{id:groupId,name:'Grupo da viagem',description:''},payload={schemaVersion:1,exportedAt:new Date().toISOString(),trip:cloneOnline(current),group:cloneOnline(group)};
   tripScopedKeys.forEach(key=>payload[key]=cloneOnline((db[key]||[]).filter(item=>item.trip===current.id)));
@@ -88,6 +89,7 @@ async function syncTripSnapshotById(localTripId){
 }
 save=function(){saveLocal();scheduleOnlineSync()};
 function mergeOnlineBundle(payload,remoteTripId,revision){
+  if(typeof removeLegacySharedShopping==='function')removeLegacySharedShopping(payload);
   const localTripId=payload.trip?.id,groupId=payload.group?.id||payload.trip?.groupId;if(!localTripId||!groupId)throw new Error('invalid snapshot');
   db.groups=(db.groups||[]).filter(item=>item.id!==groupId);db.groups.push(payload.group);db.trips=(db.trips||[]).filter(item=>item.id!==localTripId);db.trips.push(payload.trip);
   tripScopedKeys.forEach(key=>{db[key]=(db[key]||[]).filter(item=>item.trip!==localTripId);db[key].push(...(payload[key]||[]))});
@@ -135,7 +137,7 @@ async function initializeOnlineAccount(){
 
 document.addEventListener('click',async event=>{
   const welcomeAuth=event.target.closest('[data-welcome-auth]');if(welcomeAuth){if(!juntoOnline.configured)return accountModal();authModal(welcomeAuth.dataset.welcomeAuth);return}
-  if(event.target.closest('[data-welcome-demo]')){hideWelcome(true);document.querySelector('#app')?.focus({preventScroll:true});return}
+  if(event.target.closest('[data-welcome-demo]')){openDemoWorkspace();return}
   if(event.target.closest('[data-account]')){accountModal();return}if(event.target.closest('[data-online-signout]')){await juntoOnline.client?.auth.signOut();closeModal();toast('Você saiu da conta. O modo local continua disponível.');return}
   const authMode=event.target.closest('[data-auth-mode]');if(authMode){authModal(authMode.dataset.authMode);return}
   if(event.target.closest('[data-google-login]')){const {error}=await juntoOnline.client.auth.signInWithOAuth({provider:'google',options:{redirectTo:authReturnUrl()}});if(error)toast(authMessage(error,'Não foi possível entrar com o Google.'),'error');return}
