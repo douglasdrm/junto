@@ -29,12 +29,13 @@ function showOnlineFailure(title,error,fallback){
 }
 function updateOnlineNote(){const note=document.querySelector('.side-note');if(!note)return;const linked=Boolean(juntoOnline.user&&activeOnlineLink());note.innerHTML=`<i></i> ${linked?'Viagem sincronizada online':juntoOnline.user?'Conta conectada · viagem ainda local':'Dados salvos somente neste navegador'}`}
 function updateAccountButton(){document.querySelectorAll('[data-account]').forEach(button=>{button.classList.toggle('is-online',Boolean(juntoOnline.user));const label=button.querySelector('span');if(label)label.textContent=juntoOnline.user?(juntoOnline.profile?.display_name||juntoOnline.user.email||'Minha conta'):'Entrar'});updateOnlineNote()}
-function tripBundle(){
-  const current=trip(),groupId=current.groupId||db.activeGroupId,group=(db.groups||[]).find(item=>item.id===groupId)||{id:groupId,name:'Grupo da viagem',description:''},payload={schemaVersion:1,exportedAt:new Date().toISOString(),trip:cloneOnline(current),group:cloneOnline(group)};
+function tripBundleFor(localTripId){
+  const current=(db.trips||[]).find(item=>item.id===localTripId);if(!current)return null;const groupId=current.groupId||db.activeGroupId,group=(db.groups||[]).find(item=>item.id===groupId)||{id:groupId,name:'Grupo da viagem',description:''},payload={schemaVersion:1,exportedAt:new Date().toISOString(),trip:cloneOnline(current),group:cloneOnline(group)};
   tripScopedKeys.forEach(key=>payload[key]=cloneOnline((db[key]||[]).filter(item=>item.trip===current.id)));
   groupScopedKeys.forEach(key=>payload[key]=cloneOnline((db[key]||[]).filter(item=>item.groupId===groupId)));
   payload.shoppingYear=db.shoppingYear||null;return payload;
 }
+function tripBundle(){return tripBundleFor(db.active)}
 async function contentHash(payload){const bytes=new TextEncoder().encode(JSON.stringify(payload)),digest=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(digest)].map(value=>value.toString(16).padStart(2,'0')).join('')}
 function persistOnlineLink(localTripId,link){onlineLinks()[localTripId]=link;saveLocal();updateAccountButton()}
 function tripOnlinePanel(){
@@ -79,6 +80,9 @@ async function syncActiveTrip(){
   if(error){if(error.message?.includes('sync conflict')){link.conflict=true;saveLocal();toast(onlineError(error),'error')}else toast('Alteração salva neste navegador; a sincronização online será tentada novamente.','error');return}
   link.revision=Number(data);link.conflict=false;saveLocal();updateOnlineNote();if(juntoOnline.syncQueued)scheduleOnlineSync();
 }
+async function syncTripSnapshotById(localTripId){
+  const link=onlineLinks()[localTripId],payload=tripBundleFor(localTripId);if(!juntoOnline.user||!link||!payload||link.conflict)return false;const {data,error}=await juntoOnline.client.rpc('sync_trip_snapshot',{target_trip:link.tripId,new_payload:payload,expected_revision:link.revision});if(error){if(error.message?.includes('sync conflict'))link.conflict=true;saveLocal();toast(onlineError(error,'Não foi possível sincronizar esta viagem.'),'error');return false}link.revision=Number(data);link.conflict=false;saveLocal();updateOnlineNote();return true;
+}
 save=function(){saveLocal();scheduleOnlineSync()};
 function mergeOnlineBundle(payload,remoteTripId,revision){
   const localTripId=payload.trip?.id,groupId=payload.group?.id||payload.trip?.groupId;if(!localTripId||!groupId)throw new Error('invalid snapshot');
@@ -108,9 +112,10 @@ async function acceptPendingInvite(){
   localStorage.removeItem('junto_pending_invite');history.replaceState({},'',location.pathname);await loadOnlineTrip(data.trip_id);toast('Convite aceito. Você agora administra esta viagem.');return true;
 }
 async function restoreOnlineTrips(){
-  const userId=juntoOnline.user?.id;if(!userId||juntoOnline.restoring||juntoOnline.restoredFor===userId||activeOnlineLink())return;
+  const userId=juntoOnline.user?.id;if(!userId||juntoOnline.restoring||juntoOnline.restoredFor===userId)return;
   juntoOnline.restoring=true;const {data,error}=await juntoOnline.client.from('trip_snapshots').select('trip_id,payload,revision,updated_at').order('updated_at',{ascending:false});juntoOnline.restoring=false;juntoOnline.restoredFor=userId;
   if(error){console.error(error);toast('Você entrou, mas não foi possível carregar suas viagens online.','error');return}
+  const currentLink=activeOnlineLink(),currentOnline=currentLink&&(data||[]).find(item=>item.trip_id===currentLink.tripId);if(currentOnline){if(Number(currentOnline.revision)>Number(currentLink.revision||0)){try{mergeOnlineBundle(currentOnline.payload,currentOnline.trip_id,currentOnline.revision);toast('A viagem foi atualizada com as alterações compartilhadas.')}catch(loadError){console.error(loadError);toast('A atualização online desta viagem é incompatível.','error')}}return}
   if(data?.length===1){const item=data[0];try{mergeOnlineBundle(item.payload,item.trip_id,item.revision);toast('Sua viagem online foi carregada.')}catch(loadError){console.error(loadError);toast('A viagem online encontrada é incompatível.','error')}return}
   if(data?.length>1)onlineTripsModal();
   if(!data?.length)toast('Conta conectada, mas nenhuma viagem online foi encontrada.','error');
