@@ -4,6 +4,24 @@
 if(!Array.isArray(db.roomPlans))db.roomPlans=[];db.roomPlans.forEach(room=>{if(!room.trip&&room.tripId)room.trip=room.tripId});
 if(!db.preferences)db.preferences={};
 
+function repairRenamedDuplicateMembers(){
+  const normalize=name=>String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  let changed=false;
+  (db.members||[]).forEach(member=>{
+    const sameName=(db.members||[]).filter(other=>other.groupId===member.groupId&&normalize(other.name)===normalize(member.name));
+    if(sameName.length<2)return;
+    const historicalNames=[...new Set((db.people||[]).filter(person=>person.memberId===member.id&&normalize(person.name)!==normalize(member.name)).map(person=>String(person.name||'').trim()).filter(Boolean))];
+    if(historicalNames.length!==1)return;
+    member.name=historicalNames[0];
+    (db.people||[]).filter(person=>person.memberId===member.id).forEach(person=>person.name=historicalNames[0]);
+    changed=true
+  });
+  if(changed)save();
+  return changed
+}
+
+repairRenamedDuplicateMembers();
+
 function familyWorkspaceView(){return db.preferences.familyWorkspaceView||'tree'}
 function activeGroupTrip(){return (db.trips||[]).find(item=>item.id===db.active&&item.groupId===db.activeGroupId)||(db.trips||[]).find(item=>item.groupId===db.activeGroupId&&tripLifecycle(item)!=='completed')}
 function tripMembersForRooms(item=activeGroupTrip()){if(!item)return[];const participantIds=new Set((db.people||[]).filter(person=>person.trip===item.id&&person.removedFromTrip!==true).map(person=>person.memberId));return groupMembers().filter(member=>participantIds.has(member.id))}
