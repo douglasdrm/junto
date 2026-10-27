@@ -31,9 +31,9 @@ const openingBalance=()=>Number(trip()?.contributionPlan?.openingBalanceCents)||
 const balanceBeforeYield=()=>openingBalance()+received()-simpleOut();
 const simpleBalance=()=>openingBalance()+received()+yieldTotal()-simpleOut();
 const planMonths=()=>trip()?.contributionPlan?.months||[];
-const planPeople=()=>{const plan=trip()?.contributionPlan||{},ids=plan.participantIds||[],order=plan.participantOrder||ids;return people().filter(person=>person.contributes!==false&&(!ids.length||ids.includes(person.id))).sort((a,b)=>{const ai=order.indexOf(a.id),bi=order.indexOf(b.id);return (ai<0?9999:ai)-(bi<0?9999:bi)})};
+const planPeople=()=>{const plan=trip()?.contributionPlan||{},ids=plan.participantIds||[],order=plan.participantOrder||ids;return people().filter(person=>person.contributes!==false&&(!ids.length||ids.includes(person.id)||person.joinedByLink===true)).sort((a,b)=>{const ai=order.indexOf(a.id),bi=order.indexOf(b.id);return (ai<0?9999:ai)-(bi<0?9999:bi)})};
 const plannedPeopleCount=()=>Math.max(0,Number(trip()?.contributionPlan?.peopleCount)||planPeople().length);
-const plannedPayerCount=()=>Math.max(0,Number(trip()?.contributionPlan?.payerCount)||planPeople().filter(person=>person.contributes!==false).length);
+const plannedPayerCount=()=>Math.max(0,Number(trip()?.contributionPlan?.payerCount)||0,planPeople().length);
 const financeCostTotal=()=>planned()+(hasMarketTotal()?0:shoppingTotal()+shoppingPlannedTotal());
 const costSplitAutomatic=()=>trip()?.contributionPlan?.mode==='cost_split'&&trip().contributionPlan.costSource==='finance';
 const effectivePlanGoal=()=>costSplitAutomatic()?financeCostTotal():Number(trip()?.contributionPlan?.goalCents)||0;
