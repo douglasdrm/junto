@@ -86,22 +86,30 @@ async function importActiveTrip(){
   persistOnlineLink(db.active,{tripId:data.trip_id,revision:Number(data.revision)||1});accountModal();toast(`${terms.title} salv${terms.article==='o'?'o':'a'} na sua conta e sincronização ativada.`);
 }
 function scheduleOnlineSync(){clearTimeout(juntoOnline.syncTimer);const link=activeOnlineLink();if(!juntoOnline.user||!link||link.conflict)return;if(juntoOnline.syncing){juntoOnline.syncQueued=true;return}juntoOnline.syncTimer=setTimeout(syncActiveTrip,900)}
+function mergeRemoteJoinedParticipants(localTripId,payload){
+  const remotePeople=(payload?.people||[]).filter(person=>person.joinedByLink===true&&person.removedFromTrip!==true),localIds=new Set((db.people||[]).filter(person=>person.trip===localTripId).map(person=>person.id)),additions=remotePeople.filter(person=>!localIds.has(person.id));if(!additions.length)return 0;
+  const memberIds=new Set(additions.map(person=>person.memberId).filter(Boolean)),localMemberIds=new Set((db.members||[]).map(member=>member.id));(payload.members||[]).filter(member=>memberIds.has(member.id)&&!localMemberIds.has(member.id)).forEach(member=>db.members.push(cloneOnline(member)));
+  additions.forEach(person=>db.people.push(cloneOnline(person)));if(db.active===localTripId&&typeof syncSimplePeoplePlan==='function')syncSimplePeoplePlan();return additions.length;
+}
+async function resolveJoinedParticipantConflict(localTripId,link){
+  const {data,error}=await juntoOnline.client.from('trip_snapshots').select('payload,revision').eq('trip_id',link.tripId).single();if(error)return false;const localIds=new Set((db.people||[]).filter(person=>person.trip===localTripId).map(person=>person.id)),joinedCount=(data.payload?.people||[]).filter(person=>person.joinedByLink===true&&person.removedFromTrip!==true&&!localIds.has(person.id)).length,revisionDelta=Number(data.revision)-Number(link.revision);if(!joinedCount||revisionDelta!==joinedCount)return false;const added=mergeRemoteJoinedParticipants(localTripId,data.payload);link.revision=Number(data.revision);link.conflict=false;saveLocal();toast(`${added} nova${added===1?' confirmação incorporada':'s confirmações incorporadas'} antes de salvar.`);return true;
+}
 async function syncActiveTrip(){
   clearTimeout(juntoOnline.syncTimer);juntoOnline.syncTimer=null;const link=activeOnlineLink();if(!juntoOnline.user||!link||link.conflict||juntoOnline.syncing)return;juntoOnline.syncing=true;juntoOnline.syncQueued=false;
   const {data,error}=await juntoOnline.client.rpc('sync_trip_snapshot',{target_trip:link.tripId,new_payload:tripBundle(),expected_revision:link.revision});juntoOnline.syncing=false;
-  if(error){if(error.message?.includes('sync conflict')){link.conflict=true;saveLocal();toast(onlineError(error),'error')}else toast('Alteração salva neste navegador; a sincronização online será tentada novamente.','error');return}
+  if(error){if(error.message?.includes('sync conflict')){if(await resolveJoinedParticipantConflict(db.active,link)){await syncActiveTrip();return}link.conflict=true;saveLocal();toast(onlineError(error),'error')}else toast('Alteração salva neste navegador; a sincronização online será tentada novamente.','error');return}
   link.revision=Number(data);link.conflict=false;saveLocal();updateOnlineNote();if(juntoOnline.syncQueued)scheduleOnlineSync();
 }
 async function syncTripSnapshotById(localTripId){
-  const link=onlineLinks()[localTripId],payload=tripBundleFor(localTripId);if(!juntoOnline.user||!link||!payload||link.conflict)return false;const {data,error}=await juntoOnline.client.rpc('sync_trip_snapshot',{target_trip:link.tripId,new_payload:payload,expected_revision:link.revision});if(error){if(error.message?.includes('sync conflict'))link.conflict=true;saveLocal();toast(onlineError(error,'Não foi possível sincronizar este planejamento.'),'error');return false}link.revision=Number(data);link.conflict=false;saveLocal();updateOnlineNote();return true;
+  const link=onlineLinks()[localTripId],payload=tripBundleFor(localTripId);if(!juntoOnline.user||!link||!payload||link.conflict)return false;const {data,error}=await juntoOnline.client.rpc('sync_trip_snapshot',{target_trip:link.tripId,new_payload:payload,expected_revision:link.revision});if(error){if(error.message?.includes('sync conflict')&&await resolveJoinedParticipantConflict(localTripId,link))return syncTripSnapshotById(localTripId);if(error.message?.includes('sync conflict'))link.conflict=true;saveLocal();toast(onlineError(error,'Não foi possível sincronizar este planejamento.'),'error');return false}link.revision=Number(data);link.conflict=false;saveLocal();updateOnlineNote();return true;
 }
 save=function(){saveLocal();scheduleOnlineSync()};
 function mergeOnlineBundle(payload,remoteTripId,revision){
   if(typeof removeLegacySharedShopping==='function')removeLegacySharedShopping(payload);
   const localTripId=payload.trip?.id,groupId=payload.group?.id||payload.trip?.groupId;if(!localTripId||!groupId)throw new Error('invalid snapshot');
   db.groups=(db.groups||[]).filter(item=>item.id!==groupId);db.groups.push(payload.group);db.trips=(db.trips||[]).filter(item=>item.id!==localTripId);db.trips.push(payload.trip);
-  tripScopedKeys.forEach(key=>{db[key]=(db[key]||[]).filter(item=>item.trip!==localTripId);db[key].push(...(payload[key]||[]))});
-  groupScopedKeys.forEach(key=>{db[key]=(db[key]||[]).filter(item=>item.groupId!==groupId);db[key].push(...(payload[key]||[]))});
+  tripScopedKeys.forEach(key=>{const records=[...new Map((payload[key]||[]).map(item=>[item.id,item])).values()];db[key]=(db[key]||[]).filter(item=>item.trip!==localTripId);db[key].push(...records)});
+  groupScopedKeys.forEach(key=>{const records=[...new Map((payload[key]||[]).map(item=>[item.id,item])).values()];db[key]=(db[key]||[]).filter(item=>item.groupId!==groupId);db[key].push(...records)});
   if(payload.shoppingYear)db.shoppingYear=payload.shoppingYear;db.active=localTripId;db.activeGroupId=groupId;onlineLinks()[localTripId]={tripId:remoteTripId,revision:Number(revision)||1};saveLocal();render();updateAccountButton();
 }
 async function loadOnlineTrip(remoteTripId){
