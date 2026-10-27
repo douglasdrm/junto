@@ -87,7 +87,7 @@ async function importActiveTrip(){
 }
 function scheduleOnlineSync(){clearTimeout(juntoOnline.syncTimer);const link=activeOnlineLink();if(!juntoOnline.user||!link||link.conflict)return;if(juntoOnline.syncing){juntoOnline.syncQueued=true;return}juntoOnline.syncTimer=setTimeout(syncActiveTrip,900)}
 async function syncActiveTrip(){
-  const link=activeOnlineLink();if(!juntoOnline.user||!link||link.conflict||juntoOnline.syncing)return;juntoOnline.syncing=true;juntoOnline.syncQueued=false;
+  clearTimeout(juntoOnline.syncTimer);juntoOnline.syncTimer=null;const link=activeOnlineLink();if(!juntoOnline.user||!link||link.conflict||juntoOnline.syncing)return;juntoOnline.syncing=true;juntoOnline.syncQueued=false;
   const {data,error}=await juntoOnline.client.rpc('sync_trip_snapshot',{target_trip:link.tripId,new_payload:tripBundle(),expected_revision:link.revision});juntoOnline.syncing=false;
   if(error){if(error.message?.includes('sync conflict')){link.conflict=true;saveLocal();toast(onlineError(error),'error')}else toast('Alteração salva neste navegador; a sincronização online será tentada novamente.','error');return}
   link.revision=Number(data);link.conflict=false;saveLocal();updateOnlineNote();if(juntoOnline.syncQueued)scheduleOnlineSync();
@@ -107,6 +107,14 @@ function mergeOnlineBundle(payload,remoteTripId,revision){
 async function loadOnlineTrip(remoteTripId){
   const {data,error}=await juntoOnline.client.from('trip_snapshots').select('trip_id,payload,revision').eq('trip_id',remoteTripId).single();if(error)return toast('Não foi possível abrir o planejamento online.','error');const terms=onlinePlanTerms(data.payload?.trip);
   try{mergeOnlineBundle(data.payload,data.trip_id,data.revision);closeModal();toast(`${terms.title} online abert${terms.article==='o'?'o':'a'} neste navegador.`)}catch(loadError){console.error(loadError);toast('A versão online deste planejamento é incompatível.','error')}
+}
+async function refreshActiveOnlineTrip(){
+  const link=activeOnlineLink();if(!link)return toast('Este planejamento ainda não está sincronizado.','error');
+  if(juntoOnline.syncing||juntoOnline.syncTimer)return toast('Aguarde as alterações locais terminarem de salvar.','error');
+  const {data,error}=await juntoOnline.client.from('trip_snapshots').select('trip_id,payload,revision').eq('trip_id',link.tripId).single();
+  if(error)return showOnlineFailure('Não foi possível atualizar o planejamento',error,'Tente novamente.');
+  if(Number(data.revision)<=Number(link.revision||0))return toast('As confirmações já estão atualizadas.');
+  try{mergeOnlineBundle(data.payload,data.trip_id,data.revision);toast('Confirmações e dados online atualizados.')}catch(loadError){console.error(loadError);toast('A versão online deste planejamento é incompatível.','error')}
 }
 async function onlineTripsModal(){
   modal('Meus planejamentos online','Viagens e eventos próprios ou compartilhados com você.','<div class="account-state"><div class="account-state-icon">↻</div><strong>Carregando planejamentos…</strong></div>');
@@ -143,7 +151,7 @@ async function manageParticipantAccess(){
   const link=activeOnlineLink();if(!link)return;
   modal('Acessos dos participantes','Convites pendentes e acessos ativos.','<div class="account-state"><strong>Carregando…</strong></div>');
   const {data,error}=await juntoOnline.client.rpc('list_trip_participant_access',{target_trip:link.tripId});if(error)return showOnlineFailure('Não foi possível consultar os acessos',error,'Tente novamente.');
-  const rows=(data||[]).map(item=>`<div class="record"><div><strong>${esc(item.name)}</strong><div class="record-meta">${esc(item.email||'Sem e-mail')} · ${item.access_active?'Acesso ativo':item.invite_status==='pending'?'Convite pendente':'Sem acesso'}</div></div>${item.access_active||item.invite_status==='pending'?`<button type="button" class="button danger small" data-revoke-participant="${esc(item.participant_id)}">Revogar</button>`:''}</div>`).join('')||'<div class="notice info">Nenhum participante ativo.</div>';
+  const rows=(data||[]).map(item=>`<div class="record"><div><strong>${esc(item.name)}</strong><div class="record-meta">${esc(item.email||'Sem e-mail')} · ${item.access_active?'Acesso ativo':item.access_revoked?'Acesso revogado':item.invite_status==='pending'?'Convite pendente':'Sem acesso'}</div></div>${item.access_revoked?`<button type="button" class="button secondary small" data-restore-participant="${esc(item.participant_id)}">Restaurar</button>`:item.access_active||item.invite_status==='pending'?`<button type="button" class="button danger small" data-revoke-participant="${esc(item.participant_id)}">Revogar</button>`:''}</div>`).join('')||'<div class="notice info">Nenhum participante ativo.</div>';
   modal('Acessos dos participantes','Revogar bloqueia a consulta imediatamente e cancela convites pendentes.',`<div class="stack">${rows}<div class="actions"><button type="button" class="button primary" data-close>Fechar</button></div></div>`);
 }
 function adminInviteModal(){modal('Convidar administrador','O convite só poderá ser aceito pela conta correspondente ao e-mail informado.',`<form id="admin-invite"><div class="stack">${field('adminInviteEmail','E-mail autorizado','email','','required autocomplete="email" maxlength="254"')}<div class="notice warn">Administradores podem ver e alterar todos os dados do planejamento.</div><button class="button primary">Gerar convite</button></div></form>`)}
@@ -170,7 +178,7 @@ async function restoreOnlineTrips(){
 async function resumeAuthenticatedAccount(){
   await loadOnlineProfile();if(juntoOnline.recoveryPending){passwordUpdateModal();return}if(juntoOnline.guestUpgradePending){guestPasswordModal();return}if(juntoOnline.invitesReady&&pendingJoin()){joinTripModal();return}if(juntoOnline.invitesReady&&await acceptPendingInvite())return;if((pendingInvite()||pendingJoin())&&!juntoOnline.invitesReady)toast('O convite será liberado após a atualização segura do banco.','error');await restoreOnlineTrips();
 }
-async function checkInviteBackend(){const {data,error}=await juntoOnline.client.rpc('participant_invites_schema_version');juntoOnline.invitesReady=!error&&Number(data)>=2}
+async function checkInviteBackend(){const {data,error}=await juntoOnline.client.rpc('participant_invites_schema_version');juntoOnline.invitesReady=!error&&Number(data)>=3}
 async function initializeOnlineAccount(){
   captureInvite();juntoOnline.configured=onlineReady();if(!juntoOnline.configured){updateAccountButton();return}
   const config=onlineConfig();juntoOnline.client=window.supabase.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});const {data}=await juntoOnline.client.auth.getSession();juntoOnline.user=data.session?.user||null;
@@ -187,10 +195,12 @@ document.addEventListener('click',async event=>{
   if(event.target.closest('[data-online-import]')){await importActiveTrip();return}if(event.target.closest('[data-admin-invite]')){adminInviteModal();return}if(event.target.closest('[data-online-trips]')){await onlineTripsModal();return}
   const open=event.target.closest('[data-open-online-trip]');if(open){open.dataset.onlineRole==='participant'?await showParticipantTrip(open.dataset.openOnlineTrip):await loadOnlineTrip(open.dataset.openOnlineTrip);return}
   if(event.target.closest('[data-general-invite]')){await createGeneralInvite();return}
+  if(event.target.closest('[data-refresh-online-trip]')){await refreshActiveOnlineTrip();return}
   if(event.target.closest('[data-confirm-join]')){const form=document.querySelector('#join-trip');if(!form?.reportValidity())return;const joinForm=new FormData(form);await acceptPendingJoin(String(joinForm.get('joinName')||'').trim(),String(joinForm.get('joinPhone')||'').trim());return}
   if(event.target.closest('[data-share-created-event]')){if(!juntoOnline.user)return accountModal();if(!juntoOnline.invitesReady)return toast('Atualize o Supabase antes de liberar os convites.','error');if(!activeOnlineLink())await importActiveTrip();if(activeOnlineLink())await createGeneralInvite();return}
   if(event.target.closest('[data-manage-participant-access]')){await manageParticipantAccess();return}
   const revokeParticipant=event.target.closest('[data-revoke-participant]');if(revokeParticipant){if(!confirm('Revogar este convite e o acesso atual?'))return;const link=activeOnlineLink(),{error}=await juntoOnline.client.rpc('revoke_trip_participant_access',{target_trip:link.tripId,local_participant_id:revokeParticipant.dataset.revokeParticipant});if(error)return showOnlineFailure('Não foi possível revogar o acesso',error,'Tente novamente.');toast('Acesso revogado.');await manageParticipantAccess();return}
+  const restoreParticipant=event.target.closest('[data-restore-participant]');if(restoreParticipant){if(!confirm('Restaurar o acesso deste participante?'))return;const link=activeOnlineLink(),{error}=await juntoOnline.client.rpc('restore_trip_participant_access',{target_trip:link.tripId,local_participant_id:restoreParticipant.dataset.restoreParticipant});if(error)return showOnlineFailure('Não foi possível restaurar o acesso',error,'Tente novamente.');toast('Acesso restaurado.');await manageParticipantAccess();return}
   if(event.target.closest('[data-copy-admin-invite]')){const input=document.querySelector('#adminInviteUrl'),value=input?.value;try{await navigator.clipboard.writeText(value);toast('Link copiado.')}catch{input?.select();toast('Selecione e copie o link.')}return}
   if(event.target.closest('[data-copy-participant-invite]')){const input=document.querySelector('#participantInviteUrl'),value=input?.value;try{await navigator.clipboard.writeText(value);toast('Link copiado.')}catch{input?.select();toast('Selecione e copie o link.')}return}
 },true);
