@@ -10,7 +10,8 @@ const groupScopedKeys=['members','groupFamilies','relationships','peopleMapLayou
 function onlineConfig(){return window.JUNTO_SUPABASE_CONFIG||{}}
 function onlineReady(){const config=onlineConfig();return Boolean(config.url&&config.publishableKey&&window.supabase?.createClient)}
 function pendingInvite(){return localStorage.getItem('junto_pending_invite')||''}
-function authReturnUrl(action=''){const url=new URL(location.pathname,location.origin),token=pendingInvite();if(token)url.searchParams.set('invite',token);if(action)url.searchParams.set('auth_action',action);return url.toString()}
+function pendingJoin(){return localStorage.getItem('junto_pending_join')||''}
+function authReturnUrl(action=''){const url=new URL(location.pathname,location.origin),token=pendingInvite(),join=pendingJoin();if(token)url.searchParams.set('invite',token);if(join)url.searchParams.set('join',join);if(action)url.searchParams.set('auth_action',action);return url.toString()}
 function authMessage(error,fallback='Não foi possível continuar.'){
   const message=String(error?.message||'').toLowerCase();
   if(message.includes('invalid login credentials'))return 'E-mail ou senha incorretos.';
@@ -47,7 +48,7 @@ function tripOnlinePanel(){
   const current=trip(),link=activeOnlineLink(),terms=onlinePlanTerms(current);
   if(!current)return '<div class="notice info">Crie ou selecione uma viagem ou evento para conectar à conta.</div>';
   if(!link)return `<section class="online-trip-panel"><div><strong>${esc(current.name)}</strong><p>Est${terms.article==='o'?'e':'a'} ${terms.kind} ainda está somente neste navegador.</p></div><div class="record-actions"><button type="button" class="button primary" data-online-import>Levar ${terms.kind} para minha conta</button><button type="button" class="button ghost" data-online-trips>Meus planejamentos online</button></div></section>`;
-  const inviteActions=juntoOnline.invitesReady?'<button type="button" class="button secondary" data-participant-invite>Convidar participante</button><button type="button" class="button ghost" data-manage-participant-access>Gerenciar acessos</button><button type="button" class="button secondary" data-admin-invite>Convidar administrador</button>':'<span class="help">Convites aguardando atualização segura do banco.</span>';
+  const inviteActions=juntoOnline.invitesReady?'<button type="button" class="button secondary" data-general-invite>Compartilhar convite</button><button type="button" class="button ghost" data-manage-participant-access>Gerenciar acessos</button><button type="button" class="button secondary" data-admin-invite>Convidar administrador</button>':'<span class="help">Convites aguardando atualização segura do banco.</span>';
   return `<section class="online-trip-panel connected"><div><strong>${esc(current.name)}</strong><p>Sincronizad${terms.article==='o'?'o':'a'} online · revisão ${Number(link.revision)||1}</p></div><div class="record-actions">${inviteActions}<button type="button" class="button ghost" data-online-trips>Meus planejamentos online</button></div></section>`;
 }
 function accountModal(){
@@ -113,6 +114,14 @@ function participantInviteModal(){
   if(!options)return toast('Cadastre participantes antes de criar um convite.','error');
   modal('Convidar participante','O convite só poderá ser aceito por uma conta com o e-mail confirmado abaixo.',`<form id="participant-invite"><div class="stack"><div class="field"><label for="inviteParticipant">Integrante</label><select id="inviteParticipant" name="participantId" required><option value="">Selecione</option>${options}</select></div>${field('inviteEmail','E-mail autorizado','email','','required autocomplete="email" maxlength="254"')}<div class="notice info">O acesso é somente leitura, não revela pagamentos individuais e o link expira em 7 dias.</div><button class="button primary">Gerar convite</button></div></form>`);
 }
+async function createGeneralInvite(){
+  const link=activeOnlineLink(),terms=onlinePlanTerms();if(!link)return toast(`Leve ${terms.article} ${terms.kind} para sua conta antes de convidar.`,'error');if(!await syncTripSnapshotById(db.active))return;
+  const {data,error}=await juntoOnline.client.rpc('create_trip_join_link',{target_trip:link.tripId});if(error)return showOnlineFailure('Não foi possível criar o convite',error,'Tente novamente.');
+  const inviteUrl=`${location.origin}${location.pathname}?join=${encodeURIComponent(data)}`,message=encodeURIComponent(`Você foi convidado para participar d${terms.article} ${terms.kind} “${trip().name}” no Juntô: ${inviteUrl}`);
+  modal('Convite geral',`Este link pode ser usado por várias pessoas para entrar n${terms.article} ${terms.kind}.`,`<div class="stack"><div class="notice info">Cada pessoa informa o próprio nome; telefone é opcional.</div><label class="field"><span>Link do convite</span><input id="participantInviteUrl" value="${esc(inviteUrl)}" readonly></label><div class="actions"><button type="button" class="button primary" data-copy-participant-invite>Copiar link</button><a class="button secondary" href="https://wa.me/?text=${message}" target="_blank" rel="noopener">Enviar no WhatsApp</a></div></div>`);
+}
+function joinTripModal(){modal('Entrar no planejamento','Informe como você aparecerá na lista de participantes.',`<form id="join-trip"><div class="stack">${field('joinName','Seu nome','text',juntoOnline.profile?.display_name||'','required minlength="2" maxlength="100" autocomplete="name"')}${field('joinPhone','Telefone (opcional)','tel',juntoOnline.profile?.phone||'','maxlength="30" autocomplete="tel"')}<button class="button primary">Confirmar participação</button></div></form>`)}
+async function acceptPendingJoin(name,phone){const token=pendingJoin();if(!token)return false;const {data,error}=await juntoOnline.client.rpc('accept_trip_join_link',{raw_token:token,display_name:name,phone:phone||null});if(error)return showOnlineFailure('Não foi possível entrar',error,'Confira os dados e tente novamente.');localStorage.removeItem('junto_pending_join');history.replaceState({},'',location.pathname);await showParticipantTrip(data.trip_id);toast('Participação confirmada.');return true}
 async function createParticipantInvite(participantId,invitedEmail){
   const link=activeOnlineLink(),person=people().find(item=>item.id===participantId),terms=onlinePlanTerms();if(!link||!person)return toast('Participante ou planejamento não encontrado.','error');
   if(!await syncTripSnapshotById(db.active))return;
@@ -138,7 +147,7 @@ async function createAdminInvite(invitedEmail){
   const inviteUrl=`${location.origin}${location.pathname}?invite=${encodeURIComponent(data)}`,message=encodeURIComponent(`Você foi convidado para administrar ${terms.article} ${terms.kind} “${trip().name}” no Juntô: ${inviteUrl}`);
   modal('Convidar administrador',`Este acesso permite ver e alterar tod${terms.article} ${terms.kind}.`,`<div class="stack"><div class="notice warn">Envie somente para uma pessoa de confiança. O link expira em 7 dias e funciona uma única vez.</div><label class="field"><span>Link do convite</span><input id="adminInviteUrl" value="${esc(inviteUrl)}" readonly></label><div class="actions"><button type="button" class="button primary" data-copy-admin-invite>Copiar link</button><a class="button secondary" href="https://wa.me/?text=${message}" target="_blank" rel="noopener">Enviar no WhatsApp</a></div></div>`);
 }
-function captureInvite(){const url=new URL(location.href),token=url.searchParams.get('invite');if(token){localStorage.setItem('junto_pending_invite',token);url.searchParams.delete('invite');history.replaceState({},'',`${url.pathname}${url.search}${url.hash}`)}}
+function captureInvite(){const url=new URL(location.href),token=url.searchParams.get('invite'),join=url.searchParams.get('join');if(token)localStorage.setItem('junto_pending_invite',token);if(join)localStorage.setItem('junto_pending_join',join);if(token||join){url.searchParams.delete('invite');url.searchParams.delete('join');history.replaceState({},'',`${url.pathname}${url.search}${url.hash}`)}}
 async function acceptPendingInvite(){
   const token=localStorage.getItem('junto_pending_invite');if(!token||!juntoOnline.user)return false;const {data,error}=await juntoOnline.client.rpc('accept_trip_invite',{raw_token:token});
   if(error){if(error.message?.includes('invite email mismatch')){toast('Este convite pertence a outro e-mail. Entre com a conta indicada pelo administrador.','error');return false}localStorage.removeItem('junto_pending_invite');history.replaceState({},'',location.pathname);toast('Este convite é inválido, expirou ou já foi usado.','error');return false}
@@ -154,13 +163,13 @@ async function restoreOnlineTrips(){
   if(!data?.length)toast('Conta conectada, mas nenhum planejamento online foi encontrado.','error');
 }
 async function resumeAuthenticatedAccount(){
-  await loadOnlineProfile();if(juntoOnline.recoveryPending){passwordUpdateModal();return}if(juntoOnline.invitesReady&&await acceptPendingInvite())return;if(pendingInvite()&&!juntoOnline.invitesReady)toast('O convite será liberado após a atualização segura do banco.','error');await restoreOnlineTrips();
+  await loadOnlineProfile();if(juntoOnline.recoveryPending){passwordUpdateModal();return}if(juntoOnline.invitesReady&&pendingJoin()){joinTripModal();return}if(juntoOnline.invitesReady&&await acceptPendingInvite())return;if((pendingInvite()||pendingJoin())&&!juntoOnline.invitesReady)toast('O convite será liberado após a atualização segura do banco.','error');await restoreOnlineTrips();
 }
-async function checkInviteBackend(){const {data,error}=await juntoOnline.client.rpc('participant_invites_schema_version');juntoOnline.invitesReady=!error&&Number(data)>=1}
+async function checkInviteBackend(){const {data,error}=await juntoOnline.client.rpc('participant_invites_schema_version');juntoOnline.invitesReady=!error&&Number(data)>=2}
 async function initializeOnlineAccount(){
   captureInvite();juntoOnline.configured=onlineReady();if(!juntoOnline.configured){updateAccountButton();return}
   const config=onlineConfig();juntoOnline.client=window.supabase.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});const {data}=await juntoOnline.client.auth.getSession();juntoOnline.user=data.session?.user||null;
-  if(juntoOnline.user){await checkInviteBackend();hideWelcome();await resumeAuthenticatedAccount()}else{updateAccountButton();if(localStorage.getItem('junto_pending_invite'))setTimeout(accountModal,350);else showWelcome()}
+  if(juntoOnline.user){await checkInviteBackend();hideWelcome();await resumeAuthenticatedAccount()}else{updateAccountButton();if(pendingInvite()||pendingJoin())setTimeout(accountModal,350);else showWelcome()}
   juntoOnline.client.auth.onAuthStateChange((authEvent,session)=>{juntoOnline.user=session?.user||null;juntoOnline.profile=null;if(authEvent==='PASSWORD_RECOVERY')juntoOnline.recoveryPending=true;if(juntoOnline.user){hideWelcome();setTimeout(async()=>{await checkInviteBackend();await resumeAuthenticatedAccount()},0)}else{juntoOnline.invitesReady=false;juntoOnline.restoredFor=null;updateAccountButton()}});
 }
 
@@ -172,7 +181,7 @@ document.addEventListener('click',async event=>{
   if(event.target.closest('[data-google-login]')){const {error}=await juntoOnline.client.auth.signInWithOAuth({provider:'google',options:{redirectTo:authReturnUrl()}});if(error)toast(authMessage(error,'Não foi possível entrar com o Google.'),'error');return}
   if(event.target.closest('[data-online-import]')){await importActiveTrip();return}if(event.target.closest('[data-admin-invite]')){adminInviteModal();return}if(event.target.closest('[data-online-trips]')){await onlineTripsModal();return}
   const open=event.target.closest('[data-open-online-trip]');if(open){open.dataset.onlineRole==='participant'?await showParticipantTrip(open.dataset.openOnlineTrip):await loadOnlineTrip(open.dataset.openOnlineTrip);return}
-  if(event.target.closest('[data-participant-invite]')){participantInviteModal();return}
+  if(event.target.closest('[data-general-invite]')){await createGeneralInvite();return}
   if(event.target.closest('[data-manage-participant-access]')){await manageParticipantAccess();return}
   const revokeParticipant=event.target.closest('[data-revoke-participant]');if(revokeParticipant){if(!confirm('Revogar este convite e o acesso atual?'))return;const link=activeOnlineLink(),{error}=await juntoOnline.client.rpc('revoke_trip_participant_access',{target_trip:link.tripId,local_participant_id:revokeParticipant.dataset.revokeParticipant});if(error)return showOnlineFailure('Não foi possível revogar o acesso',error,'Tente novamente.');toast('Acesso revogado.');await manageParticipantAccess();return}
   if(event.target.closest('[data-copy-admin-invite]')){const input=document.querySelector('#adminInviteUrl'),value=input?.value;try{await navigator.clipboard.writeText(value);toast('Link copiado.')}catch{input?.select();toast('Selecione e copie o link.')}return}
@@ -181,6 +190,7 @@ document.addEventListener('click',async event=>{
 document.addEventListener('change',event=>{if(event.target.id!=='inviteParticipant')return;const selected=event.target.selectedOptions[0],email=document.querySelector('#inviteEmail');if(email)email.value=selected?.dataset.email||''});
 document.addEventListener('submit',async event=>{
   if(event.target.id==='participant-invite'){event.preventDefault();event.stopImmediatePropagation();const inviteForm=new FormData(event.target);await createParticipantInvite(inviteForm.get('participantId'),inviteForm.get('inviteEmail'));return}
+  if(event.target.id==='join-trip'){event.preventDefault();event.stopImmediatePropagation();const joinForm=new FormData(event.target);await acceptPendingJoin(String(joinForm.get('joinName')||'').trim(),String(joinForm.get('joinPhone')||'').trim());return}
   if(event.target.id==='admin-invite'){event.preventDefault();event.stopImmediatePropagation();await createAdminInvite(new FormData(event.target).get('adminInviteEmail'));return}
   if(!['online-login','online-signup','online-forgot','online-password-update','online-profile'].includes(event.target.id))return;event.preventDefault();event.stopImmediatePropagation();const form=new FormData(event.target);
   if(event.target.id==='online-login'){const email=String(form.get('onlineEmail')||'').trim().toLowerCase(),password=String(form.get('onlinePassword')||'');const {error}=await juntoOnline.client.auth.signInWithPassword({email,password});if(error)return toast(authMessage(error,'Não foi possível entrar agora.'),'error');closeModal();toast('Você entrou na sua conta.');return}
