@@ -77,13 +77,14 @@ function guestPasswordModal(){
   modal('Concluir sua conta','E-mail confirmado. Agora crie uma senha para acessar em outros aparelhos.',`<form id="guest-password"><div class="stack">${field('guestPassword','Crie uma senha','password','','required minlength="6" autocomplete="new-password"')}${field('guestPasswordConfirm','Confirmar senha','password','','required minlength="6" autocomplete="new-password"')}<button class="button primary">Concluir cadastro</button></div></form>`);
 }
 async function loadOnlineProfile(){if(!juntoOnline.user)return;const {data,error}=await juntoOnline.client.from('profiles').select('id,display_name,phone,avatar_path,platform_owner').eq('id',juntoOnline.user.id).single();if(!error)juntoOnline.profile=data;updateAccountButton()}
-async function importActiveTrip(){
+async function importActiveTrip(askConfirmation=true){
   if(!juntoOnline.user)return accountModal();if(!trip())return toast('Crie ou selecione uma viagem ou evento primeiro.','error');const terms=onlinePlanTerms();
-  if(!confirm(`Levar “${trip().name}” para sua conta online? Depois disso, as alterações dest${terms.article==='o'?'e':'a'} ${terms.kind} serão sincronizadas.`))return;
+  if(askConfirmation&&!confirm(`Levar “${trip().name}” para sua conta online? Depois disso, as alterações dest${terms.article==='o'?'e':'a'} ${terms.kind} serão sincronizadas.`))return false;
   const payload=tripBundle(),hash=await contentHash(payload),button=document.querySelector('[data-online-import]');if(button)button.disabled=true;
   const {data,error}=await juntoOnline.client.rpc('import_local_trip',{payload,content_hash:hash});
-  if(error){if(button)button.disabled=false;showOnlineFailure('Não foi possível levar o planejamento para a conta',error,'Falha desconhecida ao salvar o planejamento.');return}
-  persistOnlineLink(db.active,{tripId:data.trip_id,revision:Number(data.revision)||1});accountModal();toast(`${terms.title} salv${terms.article==='o'?'o':'a'} na sua conta e sincronização ativada.`);
+  if(error){if(button)button.disabled=false;showOnlineFailure('Não foi possível levar o planejamento para a conta',error,'Falha desconhecida ao salvar o planejamento.');return false}
+  persistOnlineLink(db.active,{tripId:data.trip_id,revision:Number(data.revision)||1});if(askConfirmation)accountModal();toast(`${terms.title} salv${terms.article==='o'?'o':'a'} na sua conta e sincronização ativada.`);
+  return true;
 }
 function scheduleOnlineSync(){clearTimeout(juntoOnline.syncTimer);const link=activeOnlineLink();if(!juntoOnline.user||!link||link.conflict)return;if(juntoOnline.syncing){juntoOnline.syncQueued=true;return}juntoOnline.syncTimer=setTimeout(syncActiveTrip,900)}
 function mergeRemoteJoinedParticipants(localTripId,payload){
