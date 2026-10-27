@@ -19,5 +19,17 @@
     });
     return {ok:true,mode,months,goals,competencies,totalGoalCents:Object.values(goals).reduce((sum,value)=>sum+value,0),totalPlannedCents:competencies.reduce((sum,item)=>sum+item.plannedCents,0)};
   }
-  root.JuntoPlanEngine={monthsBetween,splitCents,dueDate,buildPlan};
+  function allocateCosts({people=[],entries=[],groups=[]}){
+    const payerIds=[...new Set(people.filter(person=>person&&person.removedFromTrip!==true&&person.contributes!==false).map(person=>person.id))],payerSet=new Set(payerIds),groupMap=new Map(groups.map(group=>[group.id,[...new Set(group.personIds||[])].filter(id=>payerSet.has(id))]));
+    const allocations=[],unallocated=[],byPerson=Object.fromEntries(payerIds.map(id=>[id,{plannedCents:0,confirmedCents:0}]));let totalPlannedCents=0,totalConfirmedCents=0;
+    entries.forEach((entry,index)=>{
+      const plannedCents=Math.max(0,Math.round(Number(entry.plannedCents)||0)),confirmedCents=Math.min(plannedCents,Math.max(0,Math.round(Number(entry.confirmedCents)||0))),participantIds=entry.groupId?groupMap.get(entry.groupId)||[]:payerIds;
+      totalPlannedCents+=plannedCents;totalConfirmedCents+=confirmedCents;if(!plannedCents)return;
+      if(!participantIds.length){unallocated.push({...entry,plannedCents,confirmedCents});return}
+      const plannedParts=splitCents(plannedCents,participantIds.length),confirmedParts=splitCents(confirmedCents,participantIds.length);
+      participantIds.forEach((participantId,partIndex)=>{const allocation={sourceId:entry.id||`cost-${index}`,sourceType:entry.sourceType||'expense',category:entry.category||'outros',participantId,plannedCents:plannedParts[partIndex],confirmedCents:confirmedParts[partIndex]};allocations.push(allocation);byPerson[participantId].plannedCents+=allocation.plannedCents;byPerson[participantId].confirmedCents+=allocation.confirmedCents});
+    });
+    return {allocations,byPerson,unallocated,totalPlannedCents,totalConfirmedCents,allocatedPlannedCents:allocations.reduce((sum,item)=>sum+item.plannedCents,0),allocatedConfirmedCents:allocations.reduce((sum,item)=>sum+item.confirmedCents,0)};
+  }
+  root.JuntoPlanEngine={monthsBetween,splitCents,dueDate,buildPlan,allocateCosts};
 })(globalThis);
