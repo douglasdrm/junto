@@ -186,7 +186,7 @@ async function restoreOnlineTrips(){
 async function resumeAuthenticatedAccount(){
   await loadOnlineProfile();if(juntoOnline.recoveryPending){passwordUpdateModal();return}if(juntoOnline.guestUpgradePending){guestPasswordModal();return}if(juntoOnline.invitesReady&&pendingJoin()){joinTripModal();return}if(juntoOnline.invitesReady&&await acceptPendingInvite())return;if((pendingInvite()||pendingJoin())&&!juntoOnline.invitesReady)toast('O convite será liberado após a atualização segura do banco.','error');await restoreOnlineTrips();
 }
-async function checkInviteBackend(){const {data,error}=await juntoOnline.client.rpc('participant_invites_schema_version');juntoOnline.invitesReady=!error&&Number(data)>=4}
+async function checkInviteBackend(){const {data,error}=await juntoOnline.client.rpc('participant_invites_schema_version');juntoOnline.invitesReady=!error&&Number(data)>=5}
 async function initializeOnlineAccount(){
   captureInvite();juntoOnline.configured=onlineReady();if(!juntoOnline.configured){updateAccountButton();return}
   const config=onlineConfig();juntoOnline.client=window.supabase.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});const {data}=await juntoOnline.client.auth.getSession();juntoOnline.user=data.session?.user||null;

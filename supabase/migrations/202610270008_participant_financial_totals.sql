@@ -1,0 +1,103 @@
+begin;
+
+create or replace function public.get_participant_trip_view(target_trip uuid)
+returns jsonb language plpgsql stable security definer set search_path='' as $$
+declare
+  snapshot jsonb; source_trip jsonb; public_trip jsonb;
+  collected bigint:=0; spent bigint:=0; planned bigint:=0; budget bigint:=0;
+  expense_spent bigint:=0; expense_planned bigint:=0;
+  shopping_spent bigint:=0; shopping_planned bigint:=0;
+  participant_count integer:=0; shopping_year integer; has_market_total boolean:=false;
+begin
+  if not exists(
+    select 1 from public.trip_access
+    where trip_id=target_trip and profile_id=auth.uid()
+      and role in ('participant','financial_responsible')
+  ) then raise exception 'access denied'; end if;
+
+  select payload into snapshot from public.trip_snapshots where trip_id=target_trip;
+  if snapshot is null then raise exception 'trip not found'; end if;
+  source_trip:=snapshot->'trip';
+  public_trip:=jsonb_build_object(
+    'name',source_trip->>'name','eventType',source_trip->>'eventType','region',source_trip->>'region',
+    'start',source_trip->>'start','end',source_trip->>'end','guests',source_trip->'guests',
+    'eventDate',source_trip->>'eventDate','eventStartTime',source_trip->>'eventStartTime','eventEndTime',source_trip->>'eventEndTime',
+    'address',source_trip->>'address','addressComplement',source_trip->>'addressComplement',
+    'fundraisingDeadline',source_trip->>'fundraisingDeadline','lifecycleStatus',source_trip->>'lifecycleStatus'
+  );
+
+  select count(*) into participant_count
+  from jsonb_array_elements(coalesce(snapshot->'people','[]'::jsonb)) p
+  where not coalesce((p->>'removedFromTrip')::boolean,false);
+
+  select coalesce(sum(coalesce((p->>'amountCents')::bigint,0)),0) into collected
+  from jsonb_array_elements(coalesce(snapshot->'payments','[]'::jsonb)) p;
+
+  select
+    coalesce(sum(coalesce((e->>'paidCents')::bigint,0)),0),
+    coalesce(sum(coalesce((e->>'plannedCents')::bigint,0)),0),
+    coalesce(bool_or(
+      e->>'category'='mercado'
+      and coalesce(e->>'marketPurchaseType','')<>'extra'
+      and (coalesce((e->>'paidCents')::bigint,0)>0 or coalesce((e->>'plannedCents')::bigint,0)>0)
+    ),false)
+  into expense_spent,expense_planned,has_market_total
+  from jsonb_array_elements(coalesce(snapshot->'expenses','[]'::jsonb)) e;
+
+  shopping_year:=case
+    when coalesce(snapshot->>'shoppingYear','')~'^\d{4}$' then (snapshot->>'shoppingYear')::integer
+    else (
+      select max((item->>'year')::integer)
+      from jsonb_array_elements(coalesce(snapshot->'shoppingItems','[]'::jsonb)) item
+      where coalesce(item->>'year','')~'^\d{4}$'
+    )
+  end;
+
+  if not has_market_total and shopping_year is not null then
+    select
+      coalesce(sum(case when coalesce((item->>'purchased')::boolean,true) then
+        case when item ? 'actualTotalCents' and item->>'actualTotalCents' is not null
+          then coalesce((item->>'actualTotalCents')::bigint,0)
+          else round(coalesce((item->>'quantity')::numeric,0)*coalesce((item->>'unitPriceCents')::numeric,0))::bigint
+        end else 0 end),0),
+      coalesce(sum(case when not coalesce((item->>'purchased')::boolean,true) then
+        case when item ? 'actualTotalCents' and item->>'actualTotalCents' is not null
+          then coalesce((item->>'actualTotalCents')::bigint,0)
+          else round(coalesce((item->>'quantity')::numeric,0)*coalesce((item->>'unitPriceCents')::numeric,0))::bigint
+        end else 0 end),0)
+    into shopping_spent,shopping_planned
+    from jsonb_array_elements(coalesce(snapshot->'shoppingItems','[]'::jsonb)) item
+    where coalesce(item->>'year','')~'^\d{4}$' and (item->>'year')::integer=shopping_year;
+  end if;
+
+  spent:=expense_spent+shopping_spent;
+  planned:=expense_planned+shopping_spent+shopping_planned;
+  budget:=case
+    when source_trip->'contributionPlan'->>'mode'='cost_split'
+      and source_trip->'contributionPlan'->>'costSource'='finance'
+      then planned
+    when source_trip ? 'totalBudgetCents' then coalesce((source_trip->>'totalBudgetCents')::bigint,0)
+    else coalesce((source_trip->>'budgetCents')::bigint,0)+coalesce((source_trip->>'extrasCents')::bigint,0)
+  end;
+
+  return jsonb_build_object(
+    'trip_id',target_trip,'trip',public_trip,'participant_count',participant_count,
+    'summary',jsonb_build_object(
+      'budget_cents',budget,'collected_cents',collected,
+      'spent_cents',spent,'planned_cents',planned,
+      'remaining_cents',greatest(0,budget-collected)
+    ),
+    'updated_at',(select updated_at from public.trip_snapshots where trip_id=target_trip)
+  );
+end;
+$$;
+
+create or replace function public.participant_invites_schema_version()
+returns integer language sql stable security definer set search_path='' as $$ select 5 $$;
+
+revoke all on function public.get_participant_trip_view(uuid),
+  public.participant_invites_schema_version() from public;
+grant execute on function public.get_participant_trip_view(uuid),
+  public.participant_invites_schema_version() to authenticated;
+
+commit;
