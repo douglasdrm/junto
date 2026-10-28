@@ -202,7 +202,7 @@ async function updateDirectoryCover(remoteTripId,file){
     const image=await tripCoverData(file),{data,error}=await juntoOnline.client.from('trip_snapshots').select('trip_id,payload,revision').eq('trip_id',remoteTripId).single();
     if(error)throw error;
     mergeOnlineBundle(data.payload,data.trip_id,data.revision);trip().coverImage=image;saveLocal();
-    if(await syncTripSnapshotById(db.active)){closeModal();await refreshPlanningDirectory();toast('Foto do evento atualizada.')}
+    if(await syncTripSnapshotById(db.active)){closeModal();await refreshPlanningDirectory();if(!juntoOnline.participantTripId&&db.simplePage!=='viagens')render();toast('Foto do evento atualizada.')}
   }catch(error){toast(error.message==='image too large'?'Escolha uma imagem de até 10 MB.':'Não foi possível atualizar a foto. Tente novamente.','error')}
 }
 window.addEventListener('change',event=>{const input=event.target.closest('[data-directory-upload]');if(input){event.stopImmediatePropagation();void updateDirectoryCover(input.dataset.directoryUpload,input.files?.[0])}},true);
