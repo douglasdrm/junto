@@ -31,3 +31,5 @@ function adminSplitOverview(){
   return simpleShell(item.name,`${esc(item.region||(event?'Local ainda não escolhido':'Destino ainda não escolhido'))} · Rateio ao final`,actions,metrics+controls+paymentDetails);
 }
 simpleHome=function(){return trip()?.contributionPlan?.mode==='cost_split'?adminSplitOverview():homeBeforeAdminSplit()};
+
+window.addEventListener('click',async event=>{const button=event.target.closest('[data-link-existing-person]');if(!button)return;event.preventDefault();event.stopImmediatePropagation();if(!juntoOnline.user||juntoOnline.participantTripId||!activeOnlineLink())return;if(!await syncTripSnapshotById(db.active))return;participantInviteModal(button.dataset.linkExistingPerson)},true);
