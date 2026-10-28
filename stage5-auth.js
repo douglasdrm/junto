@@ -35,13 +35,34 @@ function onlinePlanTerms(item=trip()){const eventPlan=item?.eventType==='event';
 function showWelcome(){if(!welcomeEl||juntoOnline.user||sessionStorage.getItem('junto_welcome_skipped'))return;welcomeEl.hidden=false;document.body.classList.add('welcome-open');requestAnimationFrame(()=>welcomeEl.classList.add('is-visible'))}
 function hideWelcome(remember=false){if(!welcomeEl)return;if(remember)sessionStorage.setItem('junto_welcome_skipped','1');welcomeEl.classList.remove('is-visible');document.body.classList.remove('welcome-open');setTimeout(()=>{welcomeEl.hidden=true},420)}
 function openDemoWorkspace(kind='trip'){let demoState=migrate(clone(kind==='event'?DEMO_EVENT:DEMO));for(const migration of [globalThis.migrateV3,globalThis.migrateV4,globalThis.migrateV5,globalThis.migrateV7,globalThis.migrateV8])if(typeof migration==='function')demoState=migration(demoState);db=demoState;saveLocal();render();hideWelcome(true);document.querySelector('#app')?.focus({preventScroll:true})}
-function tripBundleFor(localTripId){
-  const current=(db.trips||[]).find(item=>item.id===localTripId);if(!current)return null;const groupId=current.groupId||db.activeGroupId,group=(db.groups||[]).find(item=>item.id===groupId)||{id:groupId,name:'Grupo do planejamento',description:''},payload={schemaVersion:1,exportedAt:new Date().toISOString(),trip:cloneOnline(current),group:cloneOnline(group)};
-  tripScopedKeys.forEach(key=>payload[key]=cloneOnline((db[key]||[]).filter(item=>item.trip===current.id)));
-  groupScopedKeys.forEach(key=>payload[key]=cloneOnline((db[key]||[]).filter(item=>item.groupId===groupId)));
-  payload.shoppingYear=db.shoppingYear||null;return payload;
+function tripBundleFor(localTripId,state=db){
+  const current=(state.trips||[]).find(item=>item.id===localTripId);if(!current)return null;const groupId=current.groupId||state.activeGroupId,group=(state.groups||[]).find(item=>item.id===groupId)||{id:groupId,name:'Grupo do planejamento',description:''},payload={schemaVersion:1,exportedAt:new Date().toISOString(),trip:cloneOnline(current),group:cloneOnline(group)};
+  tripScopedKeys.forEach(key=>payload[key]=cloneOnline((state[key]||[]).filter(item=>item.trip===current.id)));
+  groupScopedKeys.forEach(key=>payload[key]=cloneOnline((state[key]||[]).filter(item=>item.groupId===groupId)));
+  payload.shoppingYear=state.shoppingYear||null;return payload;
 }
 function tripBundle(){return tripBundleFor(db.active)}
+let creatingOnlinePlanning=false;
+async function publishNewPlanning(state,localTripId){
+  if(creatingOnlinePlanning)return false;
+  if(!juntoOnline.user||juntoOnline.user.is_anonymous){toast('Entre na sua conta para criar um planejamento online.','error');accountModal();return false}
+  if(!juntoOnline.client||navigator.onLine===false){toast('Conecte-se à internet para criar o planejamento.','error');return false}
+  creatingOnlinePlanning=true;
+  try{
+    const payload=tripBundleFor(localTripId,state),hash=await contentHash(payload);
+    const {data,error}=await juntoOnline.client.rpc('import_local_trip',{payload,content_hash:hash});
+    if(error)throw error;
+    if(!data?.trip_id)throw new Error('O servidor não confirmou a criação.');
+    state.onlineTrips={...state.onlineTrips,[localTripId]:{tripId:data.trip_id,revision:Number(data.revision)||1}};
+    return true;
+  }catch(error){showOnlineFailure('Não foi possível criar o planejamento online',error,'Tente novamente. Os dados preenchidos foram preservados.');return false}
+  finally{creatingOnlinePlanning=false}
+}
+function rememberParticipantTrip(remoteTripId){
+  const userId=juntoOnline.user?.id;if(!userId)return;
+  const key=`junto_participant_trip:${userId}`;
+  if(remoteTripId)localStorage.setItem(key,remoteTripId);else localStorage.removeItem(key);
+}
 async function contentHash(payload){const bytes=new TextEncoder().encode(JSON.stringify(payload)),digest=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(digest)].map(value=>value.toString(16).padStart(2,'0')).join('')}
 function persistOnlineLink(localTripId,link){onlineLinks()[localTripId]=link;saveLocal();updateAccountButton()}
 function tripOnlinePanel(){
@@ -114,6 +135,7 @@ function mergeOnlineBundle(payload,remoteTripId,revision){
   if(payload.shoppingYear)db.shoppingYear=payload.shoppingYear;db.active=localTripId;db.activeGroupId=groupId;onlineLinks()[localTripId]={tripId:remoteTripId,revision:Number(revision)||1};saveLocal();render();updateAccountButton();
 }
 async function loadOnlineTrip(remoteTripId){
+  rememberParticipantTrip(null);juntoOnline.participantTripId=null;document.body.classList.remove('participant-online-view');
   const {data,error}=await juntoOnline.client.from('trip_snapshots').select('trip_id,payload,revision').eq('trip_id',remoteTripId).single();if(error)return toast('Não foi possível abrir o planejamento online.','error');const terms=onlinePlanTerms(data.payload?.trip);
   try{mergeOnlineBundle(data.payload,data.trip_id,data.revision);closeModal();toast(`${terms.title} online abert${terms.article==='o'?'o':'a'} neste navegador.`)}catch(loadError){console.error(loadError);toast('A versão online deste planejamento é incompatível.','error')}
 }
@@ -157,9 +179,9 @@ function renderGuestAccessUnavailable(message='Seu acesso a este planejamento n�
   document.querySelector('#app')?.focus({preventScroll:true});updateAccountButton();
 }
 async function showParticipantTrip(remoteTripId){
-  const {data,error}=await juntoOnline.client.rpc('get_participant_trip_view',{target_trip:remoteTripId});if(error){if(juntoOnline.user?.is_anonymous)renderGuestAccessUnavailable();else{juntoOnline.participantTripId=null;document.body.classList.remove('participant-online-view');render();toast('Este acesso não está mais disponível.','error')}return false}
+  const {data,error}=await juntoOnline.client.rpc('get_participant_trip_view',{target_trip:remoteTripId});if(error){if(!['42501','P0001'].includes(error.code)){toast('Não foi possível atualizar o evento. Tente novamente.','error');return false}rememberParticipantTrip(null);if(juntoOnline.user?.is_anonymous)renderGuestAccessUnavailable();else{juntoOnline.participantTripId=null;document.body.classList.remove('participant-online-view');render();toast('Este acesso não está mais disponível.','error')}return false}
   const item=data.trip||{},summary=data.summary||{},kind=item.eventType==='event'?'Evento':'Viagem',mapQuery=[item.address,item.region].filter(Boolean).join(', '),mapLink=mapQuery?`<a class="button secondary small" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}">Abrir no mapa ↗</a>`:'';
-  juntoOnline.participantTripId=remoteTripId;document.body.classList.add('participant-online-view');closeModal();
+  rememberParticipantTrip(remoteTripId);juntoOnline.participantTripId=remoteTripId;document.body.classList.add('participant-online-view');closeModal();
   const accountAction=juntoOnline.user?.is_anonymous?'<button type="button" class="button primary" data-account>Criar conta para acessar em outro aparelho</button>':'<button type="button" class="button secondary" data-leave-participant-view>Meus planejamentos</button>';
   document.querySelector('#app').innerHTML=`<div class="participant-portal"><header class="participant-portal-head"><div><p class="eyebrow">${kind.toUpperCase()} COMPARTILHAD${kind==='Evento'?'O':'A'}</p><h1>${esc(item.name||kind)}</h1><p>Acesso privado às informações gerais e aos totais do planejamento.</p></div><div class="record-actions"><button type="button" class="button ghost" data-refresh-participant-trip>Atualizar</button>${accountAction}</div></header><div class="notice info">Sua privacidade está protegida: pagamentos individuais, nomes de pagadores, comprovantes e dados particulares não aparecem aqui.</div><div class="simple-metrics participant-summary">${metric('Valor previsto',cash(summary.budget_cents))}${metric('Total arrecadado',cash(summary.collected_cents))}${metric('Falta arrecadar',cash(summary.remaining_cents))}${metric('Saldo disponível',cash((summary.collected_cents||0)-(summary.spent_cents||0)))}</div><div class="participant-portal-grid"><section class="card"><div class="section-head"><div><h2>Informações d${kind==='Evento'?'o evento':'a viagem'}</h2><p>Dados informados pelo administrador.</p></div></div><div class="record"><span>Local</span><strong>${esc(item.region||'A definir')}</strong></div>${item.address?`<div class="record"><span>Endereço</span><strong>${esc(item.address)}${item.addressComplement?` · ${esc(item.addressComplement)}`:''}</strong>${mapLink}</div>`:''}<div class="record"><span>Data e horário</span><strong>${item.eventDate?date(item.eventDate):item.start?date(item.start):'A definir'}${item.eventStartTime?' · '+esc(item.eventStartTime):''}${item.eventEndTime?' às '+esc(item.eventEndTime):''}</strong></div><div class="record"><span>Participantes confirmados</span><strong>${Number(data.participant_count)||0}</strong></div></section><section class="card"><div class="section-head"><div><h2>Resumo financeiro</h2><p>Somente valores coletivos.</p></div></div><div class="record"><span>Despesas previstas</span><strong>${cash(summary.planned_cents)}</strong></div><div class="record"><span>Despesas pagas</span><strong>${cash(summary.spent_cents)}</strong></div><div class="record"><span>Valor ainda planejado</span><strong>${cash(Math.max(0,(summary.planned_cents||0)-(summary.spent_cents||0)))}</strong></div></section></div></div>`;
   document.querySelector('#app')?.focus({preventScroll:true});updateAccountButton();return true;
@@ -185,7 +207,7 @@ async function acceptPendingInvite(){
 }
 async function restoreOnlineTrips(){
   const userId=juntoOnline.user?.id;if(!userId||juntoOnline.restoring||juntoOnline.restoredFor===userId)return;
-  juntoOnline.restoring=true;const {data:views,error:viewsError}=await juntoOnline.client.rpc('list_my_trip_views');if(!viewsError&&views?.length===1&&views[0].role==='participant'){juntoOnline.restoring=false;juntoOnline.restoredFor=userId;await showParticipantTrip(views[0].trip_id);return}if(!viewsError&&views?.length>1&&views.every(item=>item.role==='participant')){juntoOnline.restoring=false;juntoOnline.restoredFor=userId;onlineTripsModal();return}if(!viewsError&&!views?.length&&juntoOnline.user?.is_anonymous){juntoOnline.restoring=false;juntoOnline.restoredFor=userId;renderGuestAccessUnavailable();return}const {data,error}=await juntoOnline.client.from('trip_snapshots').select('trip_id,payload,revision,updated_at').order('updated_at',{ascending:false});juntoOnline.restoring=false;juntoOnline.restoredFor=userId;
+  juntoOnline.restoring=true;const {data:views,error:viewsError}=await juntoOnline.client.rpc('list_my_trip_views');if(!viewsError){const remembered=localStorage.getItem(`junto_participant_trip:${userId}`),selected=views?.find(item=>item.trip_id===remembered);if(selected?.role==='participant'){juntoOnline.restoring=false;juntoOnline.restoredFor=userId;await showParticipantTrip(selected.trip_id);return}if(remembered&&!selected)rememberParticipantTrip(null)}if(!viewsError&&views?.length===1&&views[0].role==='participant'){juntoOnline.restoring=false;juntoOnline.restoredFor=userId;await showParticipantTrip(views[0].trip_id);return}if(!viewsError&&views?.length>1&&views.every(item=>item.role==='participant')){juntoOnline.restoring=false;juntoOnline.restoredFor=userId;onlineTripsModal();return}if(!viewsError&&!views?.length&&juntoOnline.user?.is_anonymous){juntoOnline.restoring=false;juntoOnline.restoredFor=userId;renderGuestAccessUnavailable();return}const {data,error}=await juntoOnline.client.from('trip_snapshots').select('trip_id,payload,revision,updated_at').order('updated_at',{ascending:false});juntoOnline.restoring=false;juntoOnline.restoredFor=userId;
   if(error){console.error(error);toast('Você entrou, mas não foi possível carregar seus planejamentos online.','error');return}
   const currentLink=activeOnlineLink(),currentOnline=currentLink&&(data||[]).find(item=>item.trip_id===currentLink.tripId);if(currentOnline){if(Number(currentOnline.revision)>Number(currentLink.revision||0)){try{mergeOnlineBundle(currentOnline.payload,currentOnline.trip_id,currentOnline.revision);toast('O planejamento foi atualizado com as alterações compartilhadas.')}catch(loadError){console.error(loadError);toast('A atualização online deste planejamento é incompatível.','error')}}return}
   if(data?.length===1){const item=data[0];try{mergeOnlineBundle(item.payload,item.trip_id,item.revision);toast('Seu planejamento online foi carregado.')}catch(loadError){console.error(loadError);toast('O planejamento online encontrado é incompatível.','error')}return}
@@ -213,7 +235,7 @@ document.addEventListener('click',async event=>{
   const open=event.target.closest('[data-open-online-trip]');if(open){open.dataset.onlineRole==='participant'?await showParticipantTrip(open.dataset.openOnlineTrip):await loadOnlineTrip(open.dataset.openOnlineTrip);return}
   if(event.target.closest('[data-general-invite]')){await createGeneralInvite();return}
   if(event.target.closest('[data-refresh-participant-trip]')){if(await showParticipantTrip(juntoOnline.participantTripId))toast('Informações atualizadas.');return}
-  if(event.target.closest('[data-leave-participant-view]')){juntoOnline.participantTripId=null;document.body.classList.remove('participant-online-view');render();await onlineTripsModal();return}
+  if(event.target.closest('[data-leave-participant-view]')){rememberParticipantTrip(null);juntoOnline.participantTripId=null;document.body.classList.remove('participant-online-view');render();await onlineTripsModal();return}
   if(event.target.closest('[data-refresh-online-trip]')){await refreshActiveOnlineTrip();return}
   if(event.target.closest('[data-confirm-join]')){const form=document.querySelector('#join-trip');if(!form?.reportValidity())return;const joinForm=new FormData(form);await acceptPendingJoin(String(joinForm.get('joinName')||'').trim(),String(joinForm.get('joinPhone')||'').trim());return}
   if(event.target.closest('[data-share-created-event]')){if(!juntoOnline.user)return accountModal();if(!juntoOnline.invitesReady)return toast('Atualize o Supabase antes de liberar os convites.','error');if(!activeOnlineLink())await importActiveTrip();if(activeOnlineLink())await createGeneralInvite();return}
@@ -236,6 +258,10 @@ document.addEventListener('submit',async event=>{
   if(event.target.id==='online-forgot'){const email=String(form.get('onlineForgotEmail')||'').trim().toLowerCase();const {error}=await juntoOnline.client.auth.resetPasswordForEmail(email,{redirectTo:authReturnUrl('recovery')});if(error)return toast(authMessage(error,'Não foi possível enviar a recuperação.'),'error');closeModal();toast('Enviamos o link de recuperação para seu e-mail.');return}
   if(event.target.id==='online-password-update'){const password=String(form.get('onlineNewPassword')||''),confirmation=String(form.get('onlineNewPasswordConfirm')||'');if(password!==confirmation)return toast('As senhas não são iguais.','error');const {error}=await juntoOnline.client.auth.updateUser({password});if(error)return toast(authMessage(error,'Não foi possível atualizar a senha.'),'error');closeModal();toast('Senha atualizada com sucesso.');return}
   const displayName=String(form.get('onlineName')||'').trim(),phone=String(form.get('onlinePhone')||'').trim()||null;const {data,error}=await juntoOnline.client.from('profiles').update({display_name:displayName,phone,updated_at:new Date().toISOString()}).eq('id',juntoOnline.user.id).select().single();if(error)return toast('Não foi possível atualizar o perfil.','error');juntoOnline.profile=data;closeModal();updateAccountButton();toast('Perfil atualizado.');
+},true);
+
+window.addEventListener('submit',event=>{
+  if(['trip-create','trip-v4-create','trip-v5-create'].includes(event.target.id)){event.preventDefault();event.stopImmediatePropagation();toast('Use Novo planejamento para criar e salvar online.','error');return}
 },true);
 
 initializeOnlineAccount();

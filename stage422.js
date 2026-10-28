@@ -35,7 +35,7 @@ home=function(){
 function quickParticipantRecord(id,member,tripId,type,age){return {id,memberId:member.id,trip:tripId,name:member.name,familyId:'',familyGroup:'',participantType:type,birthDate:'',age:age===''||age==null?null:Number(age),responsibleId:'',share:0,contributes:false,contributionStatus:'pending',useAgeRule:false,weightOverride:true,customTargetCents:null,targetCents:null}}
 async function quickPersist(){
   quickSyncMeta();const name=quickMeta.name.trim(),region=quickMeta.region.trim(),isEvent=quickMeta.type==='event';if(!name){toast(`Informe o nome d${isEvent?'o evento':'a viagem'}.`,'error');$('#tripName')?.focus();return}if(isEvent&&quickMeta.startTime&&quickMeta.endTime&&quickMeta.endTime<=quickMeta.startTime)return toast('O término deve ser posterior ao início.','error');if(quickPeople.some(person=>!person.name.trim()))return toast('Revise os nomes dos participantes.','error');if(quickPeople.some(person=>person.age!==''&&(!Number.isInteger(Number(person.age))||Number(person.age)<0||Number(person.age)>120)))return toast('Revise as idades. Use um número inteiro entre 0 e 120.','error');
-  if(isEvent&&(typeof juntoOnline==='undefined'||!juntoOnline.user||juntoOnline.user.is_anonymous)){toast('Entre na sua conta para criar o evento online.','error');if(typeof accountModal==='function')accountModal();return}
+  if(typeof juntoOnline==='undefined'||!juntoOnline.user||juntoOnline.user.is_anonymous){toast('Entre na sua conta para criar o planejamento online.','error');if(typeof accountModal==='function')accountModal();return}
   const next=clone(db),now=new Date().toISOString();let groupId=quickMeta.groupId;
   if(groupId==='__new__'||!groupId){const groupName=quickMeta.groupName.trim()||`Grupo - ${name}`;if(next.groups.some(group=>quickNorm(group.name)===quickNorm(groupName)))return toast('Já existe um grupo com esse nome.','error');groupId=uid();next.groups.push({id:groupId,name:groupName,description:'',createdAt:now,active:true})}
   if(!next.groups.some(group=>group.id===groupId))return toast('Selecione um grupo válido.','error');
@@ -44,10 +44,9 @@ async function quickPersist(){
   quickKnown.forEach(memberId=>{const member=next.members.find(item=>item.id===memberId&&item.groupId===groupId);if(!member||used.has(member.id))return;next.people.push(quickParticipantRecord(uid(),member,tripId,member.classification||'adult',member.age??null));used.add(member.id)});
   quickPeople.forEach(person=>{const member={id:uid(),groupId,name:person.name.trim(),nickname:'',email:'',phone:person.phone||'',birthDate:'',age:person.age===''?null:Number(person.age),classification:person.type,active:true,relationships:[],lodgingPreferences:{sameRoomWith:[],bed:'indiferente',suite:false,accessibility:''},createdAt:now};next.members.push(member);const participant=quickParticipantRecord(uid(),member,tripId,person.type,person.age);participant.phone=person.phone||'';next.people.push(participant);used.add(member.id)});
   next.active=tripId;next.activeGroupId=groupId;next.page='inicio';next.simplePage='inicio';next.legacyPage='';
-  try{localStorage.setItem(KEY,JSON.stringify(next))}catch(error){toast('Não foi possível salvar. Nenhum dado foi alterado.','error');return}
-  db=next;quickJustCreated=tripId;quickPeople=[];quickKnown.clear();quickMeta={type:'',name:'',region:'',groupId,groupName:'',eventDate:'',startTime:'',endTime:'',address:'',addressComplement:''};render();
-  if(isEvent){toast('Publicando evento online…');const published=await importActiveTrip(false);if(!published)return toast('O evento ficou salvo neste navegador, mas precisa ser publicado novamente.','error')}
-  else toast('Viagem criada com segurança.')
+  if(!await publishNewPlanning(next,tripId))return;
+  db=next;saveLocal();quickJustCreated=tripId;quickPeople=[];quickKnown.clear();quickMeta={type:'',name:'',region:'',groupId,groupName:'',eventDate:'',startTime:'',endTime:'',address:'',addressComplement:''};render();updateAccountButton();
+  toast(isEvent?'Evento criado e salvo online.':'Viagem criada e salva online.');
 }
 
 document.addEventListener('click',event=>{
