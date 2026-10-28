@@ -30,7 +30,15 @@ function showOnlineFailure(title,error,fallback){
   modal(title,'O Supabase devolveu os detalhes abaixo.',`<div class="stack"><div class="notice warn"><strong>${esc(message)}</strong>${details?`<p>${esc(details)}</p>`:''}${code?`<p>Código: <code>${esc(code)}</code></p>`:''}</div><p class="help">Essas informações ajudam a corrigir o problema. Você pode tirar um print desta janela e enviar.</p><div class="actions"><button type="button" class="button primary" data-close>Fechar</button></div></div>`);
 }
 function updateOnlineNote(){const note=document.querySelector('.side-note');if(!note)return;const linked=Boolean(juntoOnline.user&&activeOnlineLink()),terms=onlinePlanTerms();note.innerHTML=`<i></i> ${linked?'Planejamento sincronizado online':juntoOnline.user?`Conta conectada · ${terms.kind} ainda local`:'Dados salvos somente neste navegador'}`}
-function updateAccountButton(){document.querySelectorAll('[data-account]').forEach(button=>{button.classList.toggle('is-online',Boolean(juntoOnline.user));const label=button.querySelector('span');if(label)label.textContent=juntoOnline.user?(juntoOnline.profile?.display_name||juntoOnline.user.email||'Minha conta'):'Entrar'});updateOnlineNote()}
+function updateAccountButton(){
+  const user=juntoOnline.user,connected=Boolean(user&&!user.is_anonymous),name=juntoOnline.profile?.display_name||user?.email||'Minha conta';
+  document.querySelectorAll('[data-account]').forEach(button=>{
+    button.classList.toggle('is-online',connected);
+    const label=button.querySelector('span');if(label)label.textContent=connected?`${name} · Conectado`:user?.is_anonymous?'Convidado':'Entrar';
+    button.title=connected?`Conectado: ${user.email||name}`:user?.is_anonymous?'Acesso como convidado':'Entrar na sua conta';
+    button.setAttribute('aria-label',button.title);
+  });updateOnlineNote();
+}
 function onlinePlanTerms(item=trip()){const eventPlan=item?.eventType==='event';return {kind:eventPlan?'evento':'viagem',title:eventPlan?'Evento':'Viagem',article:eventPlan?'o':'a'}}
 function showWelcome(){if(!welcomeEl||juntoOnline.user||sessionStorage.getItem('junto_welcome_skipped'))return;welcomeEl.hidden=false;document.body.classList.add('welcome-open');requestAnimationFrame(()=>welcomeEl.classList.add('is-visible'))}
 function hideWelcome(remember=false){if(!welcomeEl)return;if(remember)sessionStorage.setItem('junto_welcome_skipped','1');welcomeEl.classList.remove('is-visible');document.body.classList.remove('welcome-open');setTimeout(()=>{welcomeEl.hidden=true},420)}
@@ -156,10 +164,16 @@ async function refreshPlanningDirectory(){
   if(planningDirectory.loading)return;
   planningDirectory.loading=true;planningDirectory.error='';
   try{
-    const {data,error}=await juntoOnline.client.rpc('list_my_trip_views');
+    const [views,snapshots]=await Promise.all([
+      juntoOnline.client.rpc('list_my_trip_views'),
+      juntoOnline.client.from('trip_snapshots').select('trip_id,payload,updated_at').order('updated_at',{ascending:false})
+    ]);
     if(juntoOnline.user?.id!==userId)return;
-    if(error)throw error;
-    planningDirectory.items=Array.isArray(data)?data:[];planningDirectory.loaded=true;
+    if(views.error)throw views.error;
+    if(snapshots.error)throw snapshots.error;
+    const merged=new Map((Array.isArray(views.data)?views.data:[]).map(item=>[item.trip_id,item]));
+    for(const snapshot of snapshots.data||[]){const item=snapshot.payload?.trip||{};merged.set(snapshot.trip_id,{...merged.get(snapshot.trip_id),trip_id:snapshot.trip_id,role:'organizer',name:item.name,event_type:item.eventType==='event'?'celebration':'trip',updated_at:snapshot.updated_at})}
+    planningDirectory.items=[...merged.values()].sort((a,b)=>(b.updated_at||'').localeCompare(a.updated_at||''));planningDirectory.loaded=true;
   }catch(error){if(juntoOnline.user?.id===userId)planningDirectory.error='Não foi possível atualizar seus planejamentos. Tente novamente.'}
   finally{if(planningDirectory.userId===userId){planningDirectory.loading=false;if(db.simplePage==='viagens'&&!juntoOnline.participantTripId)render()}}
 }
@@ -291,6 +305,14 @@ document.addEventListener('submit',async event=>{
   if(event.target.id==='online-password-update'){const password=String(form.get('onlineNewPassword')||''),confirmation=String(form.get('onlineNewPasswordConfirm')||'');if(password!==confirmation)return toast('As senhas não são iguais.','error');const {error}=await juntoOnline.client.auth.updateUser({password});if(error)return toast(authMessage(error,'Não foi possível atualizar a senha.'),'error');closeModal();toast('Senha atualizada com sucesso.');return}
   const displayName=String(form.get('onlineName')||'').trim(),phone=String(form.get('onlinePhone')||'').trim()||null;const {data,error}=await juntoOnline.client.from('profiles').update({display_name:displayName,phone,updated_at:new Date().toISOString()}).eq('id',juntoOnline.user.id).select().single();if(error)return toast('Não foi possível atualizar o perfil.','error');juntoOnline.profile=data;closeModal();updateAccountButton();toast('Perfil atualizado.');
 },true);
+
+function refreshVisiblePlanningDirectory(){
+  if(document.visibilityState==='hidden'||!juntoOnline.user||db.simplePage!=='viagens'||juntoOnline.participantTripId)return;
+  void refreshPlanningDirectory();
+}
+window.addEventListener('focus',refreshVisiblePlanningDirectory);
+window.addEventListener('online',refreshVisiblePlanningDirectory);
+document.addEventListener('visibilitychange',refreshVisiblePlanningDirectory);
 
 window.addEventListener('click',event=>{
   if(event.target.closest('[data-refresh-planning-directory]')){event.preventDefault();event.stopImmediatePropagation();void refreshPlanningDirectory();return}
