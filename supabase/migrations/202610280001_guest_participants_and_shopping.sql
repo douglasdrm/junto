@@ -28,7 +28,9 @@ begin
 
   select count(*) into participant_count
   from jsonb_array_elements(coalesce(snapshot->'people','[]'::jsonb)) p
-  where not coalesce((p->>'removedFromTrip')::boolean,false);
+  where not coalesce((p->>'removedFromTrip')::boolean,false)
+  and not exists(select 1 from public.trip_participants tp join public.trip_invites ti on ti.participant_id=tp.id
+    where tp.trip_id=target_trip and tp.local_source_id=p->>'id' and ti.status in ('pending','expired'));
 
   select coalesce(sum(coalesce((p->>'amountCents')::bigint,0)),0) into collected
   from jsonb_array_elements(coalesce(snapshot->'payments','[]'::jsonb)) p;
@@ -45,11 +47,11 @@ begin
   from jsonb_array_elements(coalesce(snapshot->'expenses','[]'::jsonb)) e;
 
   shopping_year:=case
-    when coalesce(snapshot->>'shoppingYear','')~'^\d{4}$' then (snapshot->>'shoppingYear')::integer
+    when coalesce(snapshot->>'shoppingYear','')~'^[0-9]{4}$' then (snapshot->>'shoppingYear')::integer
     else (
       select max((item->>'year')::integer)
       from jsonb_array_elements(coalesce(snapshot->'shoppingItems','[]'::jsonb)) item
-      where coalesce(item->>'year','')~'^\d{4}$'
+      where coalesce(item->>'year','')~'^[0-9]{4}$'
     )
   end;
 
@@ -67,7 +69,7 @@ begin
         end else 0 end),0)
     into shopping_spent,shopping_planned
     from jsonb_array_elements(coalesce(snapshot->'shoppingItems','[]'::jsonb)) item
-    where coalesce(item->>'year','')~'^\d{4}$' and (item->>'year')::integer=shopping_year;
+    where coalesce(item->>'year','')~'^[0-9]{4}$' and (item->>'year')::integer=shopping_year;
   end if;
 
   spent:=expense_spent+shopping_spent;
@@ -110,6 +112,6 @@ begin
 end;
 $$;
 
-revoke all on function public.get_participant_trip_view(uuid) from public;
+revoke all on function public.get_participant_trip_view(uuid) from public, anon;
 grant execute on function public.get_participant_trip_view(uuid) to authenticated;
 commit;
