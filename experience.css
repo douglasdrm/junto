@@ -9,3 +9,5 @@ button,input,select,textarea{font-family:inherit}button{transition:background .1
 @media(prefers-reduced-motion:reduce){button{transition:none}.button.primary:hover{transform:none}}
 /* Welcome is a full-screen layer; access dialogs must remain above it. */
 .modal-bg{z-index:1000}.welcome{color:var(--color-navy)}.welcome:before{opacity:.2}.welcome-orb{opacity:.12}.welcome-brand small{color:#6f7c96}.welcome-kicker{color:var(--color-primary)}.welcome-kicker i{background:var(--color-primary)}.welcome-lead{color:#67748d}.welcome-reassurance{color:#7e8aa0}.welcome-demo{background:#fff;border:1px solid #dce3ef;color:var(--color-navy)}.welcome-demo:hover{background:#edf2ff}.welcome-step{box-shadow:0 12px 35px #222c4c0a}.welcome-step h2{color:var(--color-navy)}.welcome-step p{color:#71809a}.welcome-step .step-number{color:#8391ac}.welcome-footer span{color:#7a879d}.welcome-footer b{color:var(--color-primary)}.welcome-login span{border-color:#dbe2ef}.welcome-progress i{background:#dce3f0}.welcome-progress i:first-child{background:var(--color-primary)}
+
+.sidebar .mobile-only{display:none}@media(max-width:760px){.sidebar .mobile-only{display:grid}}

@@ -195,7 +195,7 @@ render=function(){
   if(!db.simplePage)db.simplePage='inicio';
   const navEl=$('#nav'),appEl=$('#app'),pages={inicio:simpleHome,viagens:simpleTrips,grupos:groupsPage,contribuicoes:simpleContributions,financeiro:simpleFinance,pessoas:simplePeople,mais:simpleMore};
   navEl.innerHTML=SIMPLE_NAV.map(([id,icon,label])=>`<button class="nav ${db.simplePage===id?'active':''}" data-simple-page="${id}"><span>${icon}</span>${label}</button>`).join('');
-  const legacy=db.legacyPage;appEl.innerHTML=legacy&&legacyPages[legacy]?`<button class="button ghost simple-back" data-close-legacy>← Voltar para o modo simples</button>${legacyPages[legacy]()}`:(pages[db.simplePage]||simpleHome)();enhanceCurrencyInputs(appEl);appEl.focus({preventScroll:true});closeMenu();
+  const legacy=db.legacyPage;appEl.innerHTML=legacy&&legacyPages[legacy]?`<button class="button ghost simple-back" data-close-legacy>← Voltar</button>${legacyPages[legacy]()}`:(pages[db.simplePage]||simpleHome)();enhanceCurrencyInputs(appEl);appEl.focus({preventScroll:true});closeMenu();
 };
 
 function addMonths(start,count){const [year,month]=start.split('-').map(Number),result=[];for(let index=0;index<count;index++){const date=new Date(Date.UTC(year,month-1+index,1));result.push(`${date.getUTCFullYear()}-${String(date.getUTCMonth()+1).padStart(2,'0')}`)}return result}
