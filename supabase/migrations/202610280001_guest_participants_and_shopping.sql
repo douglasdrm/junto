@@ -7,7 +7,7 @@ declare
   collected bigint:=0; spent bigint:=0; planned bigint:=0; budget bigint:=0;
   expense_spent bigint:=0; expense_planned bigint:=0;
   shopping_spent bigint:=0; shopping_planned bigint:=0;
-  participant_count integer:=0; shopping_year integer; has_market_total boolean:=false;
+  confirmed_payers integer:=0; split_total bigint:=0; participant_count integer:=0; shopping_year integer; has_market_total boolean:=false;
 begin
   if not exists(
     select 1 from public.trip_access
@@ -19,6 +19,7 @@ begin
   if snapshot is null then raise exception 'trip not found'; end if;
   source_trip:=snapshot->'trip';
   public_trip:=jsonb_build_object(
+    'contributionMode',coalesce(source_trip->'contributionPlan'->>'mode',source_trip->>'contributionPreference','fund_first'),
     'name',source_trip->>'name','eventType',source_trip->>'eventType','region',source_trip->>'region',
     'start',source_trip->>'start','end',source_trip->>'end','guests',source_trip->'guests',
     'eventDate',source_trip->>'eventDate','eventStartTime',source_trip->>'eventStartTime','eventEndTime',source_trip->>'eventEndTime',
@@ -82,6 +83,14 @@ begin
     else coalesce((source_trip->>'budgetCents')::bigint,0)+coalesce((source_trip->>'extrasCents')::bigint,0)
   end;
 
+  select count(*) into confirmed_payers
+  from jsonb_array_elements(coalesce(snapshot->'people','[]'::jsonb)) p
+  where not coalesce((p->>'removedFromTrip')::boolean,false)
+    and coalesce((p->>'contributes')::boolean,true)
+    and not exists(select 1 from public.trip_participants tp join public.trip_invites ti on ti.participant_id=tp.id
+      where tp.trip_id=target_trip and tp.local_source_id=p->>'id' and ti.status in ('pending','expired'));
+  split_total:=greatest(0,budget-coalesce((source_trip->'contributionPlan'->>'openingBalanceCents')::bigint,0));
+
   return jsonb_build_object(
      'trip_id',target_trip,'trip',public_trip,'participant_count',participant_count,
     'shared_details',jsonb_build_object(
@@ -103,6 +112,8 @@ begin
         where shopping_year is null or item->>'year'=shopping_year::text)
     ),
     'summary',jsonb_build_object(
+      'split_total_cents',split_total,'confirmed_payer_count',confirmed_payers,
+      'split_per_person_cents',case when confirmed_payers>0 then ceil(split_total::numeric/confirmed_payers)::bigint else null end,
       'budget_cents',budget,'collected_cents',collected,
       'spent_cents',spent,'planned_cents',planned,
       'remaining_cents',greatest(0,budget-collected)
