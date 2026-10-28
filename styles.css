@@ -98,3 +98,13 @@ body.welcome-open{overflow:hidden}.welcome[hidden]{display:none}.welcome{positio
   .mobile-head .mobile-account.is-online{color:var(--color-navy);border-color:var(--color-primary)}
   .sidebar-account{display:block}
 }
+
+.directory-event-card{position:relative;isolation:isolate;overflow:hidden;min-height:260px;border:1px solid var(--color-line);border-radius:18px;background:var(--color-navy);color:#fff;box-shadow:var(--shadow-sm)}
+.directory-event-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}
+.directory-event-card.has-photo:after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.10);z-index:-1}
+.directory-event-content{display:flex;flex-direction:column;gap:14px;min-height:260px;padding:20px}
+.directory-event-content h3{margin:auto 0 0;font-size:25px;color:#fff;text-shadow:0 1px 5px #000b;overflow-wrap:anywhere}
+.directory-event-tags{display:flex;flex-wrap:wrap;gap:6px}.directory-event-tags span{padding:5px 9px;border:1px solid #ffffffb3;border-radius:999px;background:#11182755;backdrop-filter:blur(6px);font-size:11px;color:#fff}
+.directory-cover-tools{display:flex;justify-content:flex-end;gap:6px}.directory-cover-tools button,.directory-cover-tools label{cursor:pointer;padding:6px 9px;border:1px solid #ffffff99;border-radius:8px;background:#11182755;color:#fff;font-size:11px;backdrop-filter:blur(6px)}.directory-cover-tools input{display:none}
+.directory-event-footer{display:flex;justify-content:flex-end}.directory-event-footer .button{flex:none;width:auto;min-height:32px;padding:7px 12px;font-size:11px;background:#ffffffeb;color:var(--color-navy);border:1px solid #ffffffbb}
+.directory-event-card:focus-visible{outline:3px solid var(--color-primary);outline-offset:3px}

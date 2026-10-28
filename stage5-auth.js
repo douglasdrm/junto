@@ -173,14 +173,18 @@ async function refreshPlanningDirectory(){
     if(views.error)throw views.error;
     if(snapshots.error)throw snapshots.error;
     const merged=new Map((Array.isArray(views.data)?views.data:[]).map(item=>[item.trip_id,item]));
-    for(const snapshot of snapshots.data||[]){const item=snapshot.payload?.trip||{};merged.set(snapshot.trip_id,{...merged.get(snapshot.trip_id),trip_id:snapshot.trip_id,role:'organizer',name:item.name,event_type:item.eventType==='event'?'celebration':'trip',updated_at:snapshot.updated_at})}
+    for(const snapshot of snapshots.data||[]){const item=snapshot.payload?.trip||{};merged.set(snapshot.trip_id,{...merged.get(snapshot.trip_id),trip_id:snapshot.trip_id,role:'organizer',name:item.name,event_type:item.eventType==='event'?'celebration':'trip',updated_at:snapshot.updated_at,details:item,participantCount:(snapshot.payload?.people||[]).filter(person=>!person.removedFromTrip).length})}
     planningDirectory.items=[...merged.values()].sort((a,b)=>(b.updated_at||'').localeCompare(a.updated_at||''));planningDirectory.loaded=true;
   }catch(error){if(juntoOnline.user?.id===userId)planningDirectory.error='Não foi possível atualizar seus planejamentos. Tente novamente.'}
   finally{if(planningDirectory.userId===userId){planningDirectory.loading=false;if(db.simplePage==='viagens'&&!juntoOnline.participantTripId)render()}}
 }
 function planningDirectorySection(role,title,description){
   const items=planningDirectory.items.filter(item=>planningAccessRole(item)===role);
-  const rows=items.map(item=>{const eventPlan=['event','celebration'].includes(item.event_type);return `<article class="card"><div class="section-head"><div><span class="plan-type-label">${eventPlan?'Evento':'Viagem'} · ${role==='organizer'?'Administrador':'Convidado'}</span><h3>${esc(item.name||'Planejamento')}</h3></div></div><button type="button" class="button ${role==='organizer'?'primary':'secondary'}" data-open-online-trip="${esc(item.trip_id)}" data-online-role="${role}">${role==='organizer'?'Abrir como administrador':'Visualizar como convidado'}</button></article>`}).join('');
+  const rows=items.map(item=>{
+    const eventPlan=['event','celebration'].includes(item.event_type),details=item.details||{},cover=String(details.coverImage||''),safeCover=/^(data:image\/(png|jpeg|webp);base64,|https:\/\/)/i.test(cover)?cover:'',admin=role==='organizer';
+    const info=[eventPlan?'Evento':'Viagem',admin?'Administrador':'Convidado',details.region,details.eventDate||details.start,details.eventStartTime,item.participantCount!=null?`${item.participantCount} participantes`:''].filter(Boolean);
+    return `<article class="directory-event-card ${safeCover?'has-photo':''}" tabindex="0" ${admin?`data-directory-card="${esc(item.trip_id)}"`:''}>${safeCover?`<img class="directory-event-photo" src="${esc(safeCover)}" alt="" loading="lazy">`:''}<div class="directory-event-content">${admin?`<div class="directory-cover-tools"><button type="button" data-directory-paste="${esc(item.trip_id)}">Colar foto</button><label>Subir foto<input type="file" accept="image/jpeg,image/png,image/webp" data-directory-upload="${esc(item.trip_id)}"></label></div>`:''}<h3>${esc(item.name||'Planejamento')}</h3><div class="directory-event-tags">${info.map(value=>`<span>${esc(value)}</span>`).join('')}</div><div class="directory-event-footer"><button type="button" class="button secondary small" data-open-online-trip="${esc(item.trip_id)}" data-online-role="${role}">${admin?'Abrir como adm':'Visualizar evento'} <span aria-hidden="true">↗</span></button></div></div></article>`;
+  }).join('');
   return `<section class="card"><div class="section-head"><div><h2>${title}</h2><p>${description}</p></div><strong>${items.length}</strong></div><div class="trip-manager-grid">${rows||`<p class="help">${role==='organizer'?'Você ainda não organiza nenhum planejamento.':'Seus convites aceitos aparecerão aqui.'}</p>`}</div></section>`;
 }
 function onlinePlanningPage(){
@@ -192,6 +196,18 @@ function onlinePlanningPage(){
   const sections=planningDirectory.loaded?planningDirectorySection('organizer','Organizando','Planejamentos que você pode administrar e editar.')+planningDirectorySection('participant','Participando como convidado','Convites aceitos, com acesso às informações compartilhadas pelo organizador.'):'';
   return simpleShell('Viagens e eventos','Seus planejamentos organizados e os eventos em que você participa.','<button type="button" class="button secondary" data-refresh-planning-directory>Atualizar lista</button><button type="button" class="button secondary" data-new-historical-trip>+ Viagem anterior</button><button type="button" class="button primary" data-new-trip>+ Novo planejamento</button>',`<div class="simple-stack">${status}${error}${sections}</div>`);
 }
+async function updateDirectoryCover(remoteTripId,file){
+  if(!file)return toast('Copie uma imagem ou escolha um arquivo.','error');
+  try{
+    const image=await tripCoverData(file),{data,error}=await juntoOnline.client.from('trip_snapshots').select('trip_id,payload,revision').eq('trip_id',remoteTripId).single();
+    if(error)throw error;
+    mergeOnlineBundle(data.payload,data.trip_id,data.revision);trip().coverImage=image;saveLocal();
+    if(await syncTripSnapshotById(db.active)){closeModal();await refreshPlanningDirectory();toast('Foto do evento atualizada.')}
+  }catch(error){toast(error.message==='image too large'?'Escolha uma imagem de até 10 MB.':'Não foi possível atualizar a foto. Tente novamente.','error')}
+}
+window.addEventListener('change',event=>{const input=event.target.closest('[data-directory-upload]');if(input){event.stopImmediatePropagation();void updateDirectoryCover(input.dataset.directoryUpload,input.files?.[0])}},true);
+window.addEventListener('paste',event=>{const zone=event.target.closest?.('[data-directory-card],[data-directory-paste-zone]');if(!zone)return;const file=[...(event.clipboardData?.items||[])].find(item=>item.type.startsWith('image/'))?.getAsFile();if(!file)return;event.preventDefault();event.stopImmediatePropagation();void updateDirectoryCover(zone.dataset.directoryCard||zone.dataset.directoryPasteZone,file)},true);
+
 function openPlanningDirectory(){rememberParticipantTrip(null);juntoOnline.participantTripId=null;document.body.classList.remove('participant-online-view');db.simplePage='viagens';db.legacyPage='';closeModal();saveLocal();render();void refreshPlanningDirectory()}
 
 async function onlineTripsModal(){
@@ -320,6 +336,7 @@ window.addEventListener('online',refreshVisiblePlanningDirectory);
 document.addEventListener('visibilitychange',refreshVisiblePlanningDirectory);
 
 window.addEventListener('click',async event=>{
+  const pastePhoto=event.target.closest('[data-directory-paste]');if(pastePhoto){event.preventDefault();event.stopImmediatePropagation();modal('Colar foto','Copie uma imagem e pressione Ctrl+V na área abaixo.',`<div tabindex="0" class="card" data-directory-paste-zone="${esc(pastePhoto.dataset.directoryPaste)}">Clique aqui e pressione Ctrl+V</div>`);document.querySelector('[data-directory-paste-zone]')?.focus();return}
   if(event.target.closest('[data-include-organizer]')){event.preventDefault();event.stopImmediatePropagation();if(!juntoOnline.user||juntoOnline.participantTripId||!activeOnlineLink())return;const next=cloneOnline(db);if(!includeOrganizerParticipant(next,db.active))return;db=next;saveLocal();render();if(await syncTripSnapshotById(db.active))toast('Você está na lista de participantes.');return}
   const guestSection=event.target.closest('[data-guest-section]');if(guestSection){event.preventDefault();event.stopImmediatePropagation();document.querySelectorAll('[data-guest-section]').forEach(button=>button.classList.toggle('active',button===guestSection));closeMenu();document.getElementById(guestSection.dataset.guestSection)?.scrollIntoView({behavior:'smooth',block:'start'});return}
   if(event.target.closest('[data-refresh-planning-directory]')){event.preventDefault();event.stopImmediatePropagation();void refreshPlanningDirectory();return}
