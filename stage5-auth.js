@@ -319,7 +319,8 @@ window.addEventListener('focus',refreshVisiblePlanningDirectory);
 window.addEventListener('online',refreshVisiblePlanningDirectory);
 document.addEventListener('visibilitychange',refreshVisiblePlanningDirectory);
 
-window.addEventListener('click',event=>{
+window.addEventListener('click',async event=>{
+  if(event.target.closest('[data-include-organizer]')){event.preventDefault();event.stopImmediatePropagation();if(!juntoOnline.user||juntoOnline.participantTripId||!activeOnlineLink())return;const next=cloneOnline(db);if(!includeOrganizerParticipant(next,db.active))return;db=next;saveLocal();render();if(await syncTripSnapshotById(db.active))toast('Você está na lista de participantes.');return}
   const guestSection=event.target.closest('[data-guest-section]');if(guestSection){event.preventDefault();event.stopImmediatePropagation();document.querySelectorAll('[data-guest-section]').forEach(button=>button.classList.toggle('active',button===guestSection));closeMenu();document.getElementById(guestSection.dataset.guestSection)?.scrollIntoView({behavior:'smooth',block:'start'});return}
   if(event.target.closest('[data-refresh-planning-directory]')){event.preventDefault();event.stopImmediatePropagation();void refreshPlanningDirectory();return}
   if(event.target.closest('[data-simple-page="viagens"]')){event.preventDefault();event.stopImmediatePropagation();openPlanningDirectory()}
