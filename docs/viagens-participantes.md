@@ -1,6 +1,6 @@
 # Viagens: acesso do participante e compras colaborativas
 
-Status: escopo aprovado em 28/10/2026. Publicados o vínculo por link sem e-mail prévio, aprovação pelo administrador e Sou eu. Extrato pessoal e compras colaborativas permanecem pendentes.
+Status: escopo aprovado em 28/10/2026. Publicados o vínculo por link sem e-mail prévio, aprovação pelo administrador e Sou eu. Compras colaborativas com comprovantes e conferência administrativa também implementadas. Extrato pessoal completo e acertos de reembolso/abatimento permanecem pendentes.
 Ajuste inicial publicado separadamente: Pessoas responsivo e ação Vincular acesso por pessoa.
 
 ## Regras
