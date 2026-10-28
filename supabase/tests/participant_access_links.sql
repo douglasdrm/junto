@@ -1,0 +1,38 @@
+begin;
+do $$
+declare own uuid; guest uuid; g uuid:=gen_random_uuid(); t uuid:=gen_random_uuid(); m1 uuid:=gen_random_uuid(); m2 uuid:=gen_random_uuid(); m3 uuid:=gen_random_uuid(); token text; req uuid;
+begin
+ select id into own from auth.users where not coalesce(is_anonymous,false) and email_confirmed_at is not null order by created_at limit 1;
+ select id into guest from auth.users where not coalesce(is_anonymous,false) and email_confirmed_at is not null and id<>own order by created_at limit 1;
+ if guest is null then raise exception 'two confirmed fixture accounts required'; end if;
+ perform set_config('request.jwt.claim.sub',own::text,true);
+ insert into public.travel_groups(id,owner_id,name) values(g,own,'Temporary access test');
+ insert into public.trips(id,group_id,organizer_id,name) values(t,g,own,'Temporary access test');
+ insert into public.trip_access(trip_id,profile_id,role,granted_by) values(t,own,'organizer',own) on conflict do nothing;
+ insert into public.group_members(id,group_id,display_name,created_by) values(m1,g,'Owner fixture',own),(m2,g,'Guest fixture',own),(m3,g,'Extra fixture',own);
+ insert into public.trip_participants(trip_id,member_id,local_source_id) values(t,m1,'owner'),(t,m2,'guest'),(t,m3,'extra');
+ perform public.link_my_participant(t,'owner'); perform public.link_my_participant(t,'owner');
+ if not exists(select 1 from public.member_profile_links where member_id=m1 and profile_id=own and status='active') then raise exception 'self link failed'; end if;
+ if not exists(select 1 from public.trip_access where trip_id=t and profile_id=own and role='organizer') then raise exception 'organizer role changed'; end if;
+ token:=public.create_participant_access_link(t,'guest');
+ perform set_config('request.jwt.claim.sub',guest::text,true);
+ begin perform public.create_participant_access_link(t,'extra'); raise exception 'unauthorized create allowed'; exception when others then if sqlerrm='unauthorized create allowed' then raise; end if; end;
+ perform public.request_participant_access(token); perform public.request_participant_access(token);
+ if exists(select 1 from public.trip_access where trip_id=t and profile_id=guest) then raise exception 'access granted before approval'; end if;
+ perform set_config('request.jwt.claim.sub',own::text,true);
+ begin perform public.request_participant_access(token); raise exception 'second claimant allowed'; exception when others then if sqlerrm='second claimant allowed' then raise; end if; end;
+ select l.id into req from public.participant_access_links l join public.trip_participants tp on tp.id=l.participant_id where tp.trip_id=t and tp.member_id=m2;
+ perform public.review_participant_access_link(req,true);
+ if not exists(select 1 from public.trip_access where trip_id=t and profile_id=guest and role='participant') then raise exception 'approval failed'; end if;
+ begin perform public.review_participant_access_link(req,true); raise exception 'duplicate approval allowed'; exception when others then if sqlerrm='duplicate approval allowed' then raise; end if; end;
+ begin perform public.link_my_participant(t,'guest'); raise exception 'other identity overwritten'; exception when others then if sqlerrm='other identity overwritten' then raise; end if; end;
+ token:=public.create_participant_access_link(t,'extra');
+ update public.participant_access_links set expires_at=now()-interval '1 second' where trip_id=t and status='open';
+ perform set_config('request.jwt.claim.sub',guest::text,true);
+ begin perform public.request_participant_access(token); raise exception 'expired link allowed'; exception when others then if sqlerrm='expired link allowed' then raise; end if; end;
+ perform set_config('request.jwt.claim.sub','',true); perform set_config('request.jwt.claims','{}',true);
+ begin perform public.link_my_participant(t,'extra'); raise exception 'unauthenticated self allowed'; exception when others then if sqlerrm='unauthenticated self allowed' then raise; end if; end;
+ if has_function_privilege('anon','public.request_participant_access(text)','execute') or has_table_privilege('authenticated','public.participant_access_links','select') then raise exception 'unintended API grants'; end if;
+end $$;
+rollback;
+select 'PASS: self link, organizer role, pending access isolation, approval, replay, wrong account, expiry and authorization; fixtures rolled back' as result;

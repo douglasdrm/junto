@@ -1,6 +1,6 @@
 # Viagens: acesso do participante e compras colaborativas
 
-Status: escopo aprovado em 28/10/2026; implementação funcional pendente.
+Status: escopo aprovado em 28/10/2026. Publicados o vínculo por link sem e-mail prévio, aprovação pelo administrador e Sou eu. Extrato pessoal e compras colaborativas permanecem pendentes.
 Ajuste inicial publicado separadamente: Pessoas responsivo e ação Vincular acesso por pessoa.
 
 ## Regras
@@ -11,7 +11,7 @@ Ajuste inicial publicado separadamente: Pessoas responsivo e ação Vincular ace
 - Dados financeiros pessoais somente para o próprio participante ou responsável explicitamente autorizado. Não liberar família ou Turma automaticamente.
 
 ## Vínculo por WhatsApp proposto
-1. Administrador escolhe cadastro existente e informa telefone com país/DDD.
+1. Administrador escolhe cadastro existente; não precisa informar e-mail nem telefone.
 2. Sistema gera token individual, aleatório, com validade, uso único e revogação; guardar somente hash.
 3. Administrador envia link pelo WhatsApp (sem envio automático).
 4. Destinatário cria ou acessa conta com e-mail confirmado.
@@ -54,3 +54,4 @@ Garantir grupos sobrepostos, não pagantes, pessoas removidas, custo sem pagante
 
 ## Validação de liberação
 Testar duas contas e um administrador: vínculo correto, conta incorreta, token expirado/reutilizado, cadastro já vinculado, troca de aparelho, atualização da página, revogação, tentativa de ler extrato alheio, preservação de pagamentos e presença durante convite, compras concorrentes, aprovação repetida e acerto sem duplicidade. Nenhum convite real deve ser enviado durante os testes.
+
