@@ -1,0 +1,36 @@
+begin;
+do $$
+declare own uuid; guest uuid; g uuid:=gen_random_uuid(); t uuid:=gen_random_uuid(); m uuid:=gen_random_uuid(); token text; link uuid; preview jsonb; notifications jsonb;
+begin
+ select id into own from auth.users where not coalesce(is_anonymous,false) and email_confirmed_at is not null order by created_at limit 1;
+ select id into guest from auth.users where not coalesce(is_anonymous,false) and email_confirmed_at is not null and id<>own order by created_at limit 1;
+ if guest is null then raise exception 'two confirmed fixture accounts required'; end if;
+ perform set_config('request.jwt.claim.sub',own::text,true);
+ insert into public.travel_groups(id,owner_id,name) values(g,own,'Temporary notification test');
+ insert into public.trips(id,group_id,organizer_id,name) values(t,g,own,'Temporary notification test');
+ insert into public.trip_access(trip_id,profile_id,role,granted_by) values(t,own,'organizer',own);
+ insert into public.group_members(id,group_id,display_name,created_by) values(m,g,'Pessoa Exemplo',own);
+ insert into public.trip_participants(trip_id,member_id,local_source_id) values(t,m,'person');
+ token:=public.create_participant_access_link(t,'person');
+ perform set_config('request.jwt.claim.sub','',true);
+ preview:=public.preview_participant_access_link(token);
+ if preview->>'first_name'<>'Pessoa' or preview->>'trip_name'<>'Temporary notification test' or preview->>'status'<>'open' then raise exception 'greeting missing'; end if;
+ if exists(select 1 from jsonb_object_keys(preview) k where k not in ('first_name','trip_name','kind','status')) then raise exception 'private preview data exposed'; end if;
+ if public.preview_participant_access_link('wrong')->>'status'<>'invalid' then raise exception 'invalid token accepted'; end if;
+ perform set_config('request.jwt.claim.sub',guest::text,true);
+ perform public.request_participant_access(token);
+ if exists(select 1 from jsonb_array_elements(public.list_my_admin_notifications()) x where x->>'trip_id'=t::text) then raise exception 'non-organizer saw admin request'; end if;
+ perform set_config('request.jwt.claim.sub',own::text,true);
+ notifications:=public.list_my_admin_notifications();
+ if not exists(select 1 from jsonb_array_elements(notifications) x where x->>'trip_id'=t::text and x->>'participant_name'='Pessoa Exemplo' and x->>'type'='access_request') then raise exception 'organizer notification missing'; end if;
+ select id into link from public.participant_access_links where trip_id=t;
+ update public.participant_access_links set expires_at=now()-interval '1 second' where id=link;
+ if public.preview_participant_access_link(token)<>'{"status":"expired"}'::jsonb then raise exception 'expired preview leaked details'; end if;
+ if exists(select 1 from jsonb_array_elements(public.list_my_admin_notifications()) x where x->>'id'=link::text) then raise exception 'expired request counted'; end if;
+ update public.participant_access_links set expires_at=now()+interval '1 day' where id=link;
+ perform public.review_participant_access_link(link,true);
+ if exists(select 1 from jsonb_array_elements(public.list_my_admin_notifications()) x where x->>'id'=link::text) then raise exception 'approved request still counted'; end if;
+ if not has_function_privilege('anon','public.preview_participant_access_link(text)','execute') or has_function_privilege('anon','public.list_my_admin_notifications()','execute') then raise exception 'incorrect function permissions'; end if;
+end $$;
+rollback;
+select 'PASS: token greeting limited to first name and planning title; actual pending requests visible only to organizers; expiry and approval remove notification; fixtures rolled back' as result;
