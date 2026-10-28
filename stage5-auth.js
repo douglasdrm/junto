@@ -147,6 +147,38 @@ async function refreshActiveOnlineTrip(){
   if(Number(data.revision)<=Number(link.revision||0))return toast('As confirmações já estão atualizadas.');
   try{mergeOnlineBundle(data.payload,data.trip_id,data.revision);toast('Confirmações e dados online atualizados.')}catch(loadError){console.error(loadError);toast('A versão online deste planejamento é incompatível.','error')}
 }
+const planningDirectory={userId:null,items:[],loaded:false,loading:false,error:''};
+function planningAccessRole(item){return item.role==='organizer'?'organizer':'participant'}
+function eventMapQuery(item){return String(item.address||'').trim()||String(item.region||'').trim()}
+async function refreshPlanningDirectory(){
+  const userId=juntoOnline.user?.id;if(!userId)return;
+  if(planningDirectory.userId!==userId)Object.assign(planningDirectory,{userId,items:[],loaded:false,loading:false,error:''});
+  if(planningDirectory.loading)return;
+  planningDirectory.loading=true;planningDirectory.error='';
+  try{
+    const {data,error}=await juntoOnline.client.rpc('list_my_trip_views');
+    if(juntoOnline.user?.id!==userId)return;
+    if(error)throw error;
+    planningDirectory.items=Array.isArray(data)?data:[];planningDirectory.loaded=true;
+  }catch(error){if(juntoOnline.user?.id===userId)planningDirectory.error='Não foi possível atualizar seus planejamentos. Tente novamente.'}
+  finally{if(planningDirectory.userId===userId){planningDirectory.loading=false;if(db.simplePage==='viagens'&&!juntoOnline.participantTripId)render()}}
+}
+function planningDirectorySection(role,title,description){
+  const items=planningDirectory.items.filter(item=>planningAccessRole(item)===role);
+  const rows=items.map(item=>{const eventPlan=['event','celebration'].includes(item.event_type);return `<article class="card"><div class="section-head"><div><span class="plan-type-label">${eventPlan?'Evento':'Viagem'} · ${role==='organizer'?'Administrador':'Convidado'}</span><h3>${esc(item.name||'Planejamento')}</h3></div></div><button type="button" class="button ${role==='organizer'?'primary':'secondary'}" data-open-online-trip="${esc(item.trip_id)}" data-online-role="${role}">${role==='organizer'?'Abrir como administrador':'Visualizar como convidado'}</button></article>`}).join('');
+  return `<section class="card"><div class="section-head"><div><h2>${title}</h2><p>${description}</p></div><strong>${items.length}</strong></div><div class="trip-manager-grid">${rows||`<p class="help">${role==='organizer'?'Você ainda não organiza nenhum planejamento.':'Seus convites aceitos aparecerão aqui.'}</p>`}</div></section>`;
+}
+function onlinePlanningPage(){
+  const userId=juntoOnline.user?.id;
+  if(planningDirectory.userId!==userId)Object.assign(planningDirectory,{userId,items:[],loaded:false,loading:false,error:''});
+  if(!planningDirectory.loaded&&!planningDirectory.loading&&!planningDirectory.error)queueMicrotask(()=>refreshPlanningDirectory());
+  const status=planningDirectory.loading||!planningDirectory.loaded&&!planningDirectory.error?'<p class="help" role="status">Carregando seus planejamentos…</p>':'';
+  const error=planningDirectory.error?`<div class="notice warn" role="alert">${esc(planningDirectory.error)} <button type="button" class="button secondary small" data-refresh-planning-directory>Tentar novamente</button></div>`:'';
+  const sections=planningDirectory.loaded?planningDirectorySection('organizer','Organizando','Planejamentos que você pode administrar e editar.')+planningDirectorySection('participant','Participando como convidado','Convites aceitos, com acesso às informações compartilhadas pelo organizador.'):'';
+  return simpleShell('Viagens e eventos','Seus planejamentos organizados e os eventos em que você participa.','<button type="button" class="button secondary" data-refresh-planning-directory>Atualizar lista</button><button type="button" class="button secondary" data-new-historical-trip>+ Viagem anterior</button><button type="button" class="button primary" data-new-trip>+ Novo planejamento</button>',`<div class="simple-stack">${status}${error}${sections}</div>`);
+}
+function openPlanningDirectory(){rememberParticipantTrip(null);juntoOnline.participantTripId=null;document.body.classList.remove('participant-online-view');db.simplePage='viagens';db.legacyPage='';closeModal();saveLocal();render();void refreshPlanningDirectory()}
+
 async function onlineTripsModal(){
   modal('Meus planejamentos online','Viagens e eventos próprios ou compartilhados com você.','<div class="account-state"><div class="account-state-icon">↻</div><strong>Carregando planejamentos…</strong></div>');
   if(!juntoOnline.invitesReady){const {data,error}=await juntoOnline.client.from('trip_snapshots').select('trip_id,payload,updated_at').order('updated_at',{ascending:false});if(error)return modal('Meus planejamentos online','Não foi possível consultar agora.',`<div class="notice warn">${esc(error.message)}</div>`);const rows=(data||[]).map(item=>{const current=item.payload?.trip,terms=onlinePlanTerms(current);return `<button type="button" class="online-trip-row" data-open-online-trip="${item.trip_id}"><span><strong>${esc(current?.name||terms.title)}</strong><small>${terms.title} · atualizado em ${new Date(item.updated_at).toLocaleString('pt-BR')}</small></span><b>Abrir</b></button>`}).join('')||'<div class="notice info">Nenhum planejamento online encontrado.</div>';modal('Meus planejamentos online','A atualização de convites ainda não foi aplicada ao banco.',`<div class="online-trip-list">${rows}</div>`);return}
@@ -180,7 +212,7 @@ function renderGuestAccessUnavailable(message='Seu acesso a este planejamento n�
 }
 async function showParticipantTrip(remoteTripId){
   const {data,error}=await juntoOnline.client.rpc('get_participant_trip_view',{target_trip:remoteTripId});if(error){if(!['42501','P0001'].includes(error.code)){toast('Não foi possível atualizar o evento. Tente novamente.','error');return false}rememberParticipantTrip(null);if(juntoOnline.user?.is_anonymous)renderGuestAccessUnavailable();else{juntoOnline.participantTripId=null;document.body.classList.remove('participant-online-view');render();toast('Este acesso não está mais disponível.','error')}return false}
-  const item=data.trip||{},summary=data.summary||{},kind=item.eventType==='event'?'Evento':'Viagem',mapQuery=[item.address,item.region].filter(Boolean).join(', '),mapLink=mapQuery?`<a class="button secondary small" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}">Abrir no mapa ↗</a>`:'';
+  const item=data.trip||{},summary=data.summary||{},kind=item.eventType==='event'?'Evento':'Viagem',mapQuery=eventMapQuery(item),mapLink=mapQuery?`<a class="button secondary small" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}">Abrir no mapa ↗</a>`:'';
   rememberParticipantTrip(remoteTripId);juntoOnline.participantTripId=remoteTripId;document.body.classList.add('participant-online-view');closeModal();
   const accountAction=juntoOnline.user?.is_anonymous?'<button type="button" class="button primary" data-account>Criar conta para acessar em outro aparelho</button>':'<button type="button" class="button secondary" data-leave-participant-view>Meus planejamentos</button>';
   document.querySelector('#app').innerHTML=`<div class="participant-portal"><header class="participant-portal-head"><div><p class="eyebrow">${kind.toUpperCase()} COMPARTILHAD${kind==='Evento'?'O':'A'}</p><h1>${esc(item.name||kind)}</h1><p>Acesso privado às informações gerais e aos totais do planejamento.</p></div><div class="record-actions"><button type="button" class="button ghost" data-refresh-participant-trip>Atualizar</button>${accountAction}</div></header><div class="notice info">Sua privacidade está protegida: pagamentos individuais, nomes de pagadores, comprovantes e dados particulares não aparecem aqui.</div><div class="simple-metrics participant-summary">${metric('Valor previsto',cash(summary.budget_cents))}${metric('Total arrecadado',cash(summary.collected_cents))}${metric('Falta arrecadar',cash(summary.remaining_cents))}${metric('Saldo disponível',cash((summary.collected_cents||0)-(summary.spent_cents||0)))}</div><div class="participant-portal-grid"><section class="card"><div class="section-head"><div><h2>Informações d${kind==='Evento'?'o evento':'a viagem'}</h2><p>Dados informados pelo administrador.</p></div></div><div class="record"><span>Local</span><strong>${esc(item.region||'A definir')}</strong></div>${item.address?`<div class="record"><span>Endereço</span><strong>${esc(item.address)}${item.addressComplement?` · ${esc(item.addressComplement)}`:''}</strong>${mapLink}</div>`:''}<div class="record"><span>Data e horário</span><strong>${item.eventDate?date(item.eventDate):item.start?date(item.start):'A definir'}${item.eventStartTime?' · '+esc(item.eventStartTime):''}${item.eventEndTime?' às '+esc(item.eventEndTime):''}</strong></div><div class="record"><span>Participantes confirmados</span><strong>${Number(data.participant_count)||0}</strong></div></section><section class="card"><div class="section-head"><div><h2>Resumo financeiro</h2><p>Somente valores coletivos.</p></div></div><div class="record"><span>Despesas previstas</span><strong>${cash(summary.planned_cents)}</strong></div><div class="record"><span>Despesas pagas</span><strong>${cash(summary.spent_cents)}</strong></div><div class="record"><span>Valor ainda planejado</span><strong>${cash(Math.max(0,(summary.planned_cents||0)-(summary.spent_cents||0)))}</strong></div></section></div></div>`;
@@ -231,11 +263,11 @@ document.addEventListener('click',async event=>{
   if(event.target.closest('[data-account]')){accountModal();return}if(event.target.closest('[data-online-signout]')){await juntoOnline.client?.auth.signOut();closeModal();toast('Você saiu da conta. O modo local continua disponível.');return}
   const authMode=event.target.closest('[data-auth-mode]');if(authMode){authModal(authMode.dataset.authMode);return}
   if(event.target.closest('[data-google-login]')){const {error}=await juntoOnline.client.auth.signInWithOAuth({provider:'google',options:{redirectTo:authReturnUrl()}});if(error)toast(authMessage(error,'Não foi possível entrar com o Google.'),'error');return}
-  if(event.target.closest('[data-online-import]')){await importActiveTrip();return}if(event.target.closest('[data-admin-invite]')){adminInviteModal();return}if(event.target.closest('[data-online-trips]')){await onlineTripsModal();return}
+  if(event.target.closest('[data-online-import]')){await importActiveTrip();return}if(event.target.closest('[data-admin-invite]')){adminInviteModal();return}if(event.target.closest('[data-online-trips]')){openPlanningDirectory();return}
   const open=event.target.closest('[data-open-online-trip]');if(open){open.dataset.onlineRole==='participant'?await showParticipantTrip(open.dataset.openOnlineTrip):await loadOnlineTrip(open.dataset.openOnlineTrip);return}
   if(event.target.closest('[data-general-invite]')){await createGeneralInvite();return}
   if(event.target.closest('[data-refresh-participant-trip]')){if(await showParticipantTrip(juntoOnline.participantTripId))toast('Informações atualizadas.');return}
-  if(event.target.closest('[data-leave-participant-view]')){rememberParticipantTrip(null);juntoOnline.participantTripId=null;document.body.classList.remove('participant-online-view');render();await onlineTripsModal();return}
+  if(event.target.closest('[data-leave-participant-view]')){openPlanningDirectory();return}
   if(event.target.closest('[data-refresh-online-trip]')){await refreshActiveOnlineTrip();return}
   if(event.target.closest('[data-confirm-join]')){const form=document.querySelector('#join-trip');if(!form?.reportValidity())return;const joinForm=new FormData(form);await acceptPendingJoin(String(joinForm.get('joinName')||'').trim(),String(joinForm.get('joinPhone')||'').trim());return}
   if(event.target.closest('[data-share-created-event]')){if(!juntoOnline.user)return accountModal();if(!juntoOnline.invitesReady)return toast('Atualize o Supabase antes de liberar os convites.','error');if(!activeOnlineLink())await importActiveTrip();if(activeOnlineLink())await createGeneralInvite();return}
@@ -258,6 +290,11 @@ document.addEventListener('submit',async event=>{
   if(event.target.id==='online-forgot'){const email=String(form.get('onlineForgotEmail')||'').trim().toLowerCase();const {error}=await juntoOnline.client.auth.resetPasswordForEmail(email,{redirectTo:authReturnUrl('recovery')});if(error)return toast(authMessage(error,'Não foi possível enviar a recuperação.'),'error');closeModal();toast('Enviamos o link de recuperação para seu e-mail.');return}
   if(event.target.id==='online-password-update'){const password=String(form.get('onlineNewPassword')||''),confirmation=String(form.get('onlineNewPasswordConfirm')||'');if(password!==confirmation)return toast('As senhas não são iguais.','error');const {error}=await juntoOnline.client.auth.updateUser({password});if(error)return toast(authMessage(error,'Não foi possível atualizar a senha.'),'error');closeModal();toast('Senha atualizada com sucesso.');return}
   const displayName=String(form.get('onlineName')||'').trim(),phone=String(form.get('onlinePhone')||'').trim()||null;const {data,error}=await juntoOnline.client.from('profiles').update({display_name:displayName,phone,updated_at:new Date().toISOString()}).eq('id',juntoOnline.user.id).select().single();if(error)return toast('Não foi possível atualizar o perfil.','error');juntoOnline.profile=data;closeModal();updateAccountButton();toast('Perfil atualizado.');
+},true);
+
+window.addEventListener('click',event=>{
+  if(event.target.closest('[data-refresh-planning-directory]')){event.preventDefault();event.stopImmediatePropagation();void refreshPlanningDirectory();return}
+  if(event.target.closest('[data-simple-page="viagens"]')){event.preventDefault();event.stopImmediatePropagation();openPlanningDirectory()}
 },true);
 
 window.addEventListener('submit',event=>{
