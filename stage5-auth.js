@@ -347,5 +347,5 @@ window.addEventListener('submit',event=>{
   if(['trip-create','trip-v4-create','trip-v5-create'].includes(event.target.id)){event.preventDefault();event.stopImmediatePropagation();toast('Use Novo planejamento para criar e salvar online.','error');return}
 },true);
 
-initializeOnlineAccount();
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>initializeOnlineAccount(),{once:true});else initializeOnlineAccount();
 if(!onlineReady())showWelcome();
