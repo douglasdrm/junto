@@ -8,10 +8,14 @@ begin
  insert into public.travel_groups(id,owner_id,name) values(g,own,'Temporary destination card');
  insert into public.trips(id,group_id,organizer_id,name) values(t,g,own,'Temporary destination card');
  insert into public.trip_access(trip_id,profile_id,role,granted_by) values(t,own,'organizer',own),(t,guest,'participant',own);
- insert into public.trip_snapshots(trip_id,payload,revision,updated_by) values(t,'{"trip":{"id":"local","name":"Fixture","start":"2027-01-07","destinationDetails":{"name":"Casa fixture","address":"Rua fixture, 12","private_note":"do not share","photos":["https://example.com/house.jpg","javascript:alert(1)","data:image/jpeg;base64,AAA"]}},"payments":[],"people":[],"expenses":[],"houses":[{"name":"Private option","note":"private host contacts","price":90000}]}',1,own);
+ insert into public.trip_snapshots(trip_id,payload,revision,updated_by) values(t,'{"trip":{"id":"local","name":"Fixture","start":"2027-01-07","departureTime":"06:30","departureMeetingPoint":"Praça fixture","destinationDetails":{"name":"Casa fixture","address":"Rua fixture, 12","private_note":"do not share","photos":["https://example.com/house.jpg","javascript:alert(1)","data:image/jpeg;base64,AAA"]}},"payments":[],"people":[],"expenses":[],"houses":[{"name":"Private option","note":"private host contacts","price":90000}]}',1,own);
+ perform public.sync_trip_snapshot(t,(select payload from public.trip_snapshots where trip_id=t),1);
+ if (select name from public.trips where id=t)<>'Fixture' or (select starts_on from public.trips where id=t)<>'2027-01-07'::date then raise exception 'directory settings not synchronized';end if;
  perform set_config('request.jwt.claim.sub',guest::text,true);
+ begin perform public.sync_trip_snapshot(t,'{}'::jsonb,2);raise exception 'guest settings write allowed';exception when others then if sqlerrm='guest settings write allowed' then raise;end if;end;
  result:=public.get_participant_trip_view(t);
  if result->'destination_details'->>'address'<>'Rua fixture, 12' then raise exception 'destination missing';end if;
+ if result->'destination_details'->>'departure_time'<>'06:30' or result->'destination_details'->>'meeting_point'<>'Praça fixture' then raise exception 'departure details missing';end if;
  if jsonb_array_length(result->'destination_details'->'photos')<>2 then raise exception 'unsafe photo not filtered';end if;
  if result::text like '%do not share%' or result::text like '%private host contacts%' then raise exception 'private data exposed';end if;
  if result->'summary'<>public.get_trip_financial_summary(t) then raise exception 'financial summary changed';end if;
