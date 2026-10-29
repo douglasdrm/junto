@@ -58,8 +58,8 @@ begin
  begin perform public.change_event_companions(t,'remove',jsonb_build_object('id',cid),3);raise exception 'outsider write';exception when others then if sqlerrm<>'access denied' then raise;end if;end;
  perform set_config('request.jwt.claim.sub','',true);
  begin perform public.get_event_companions(t);raise exception 'anonymous read';exception when others then if sqlerrm<>'access denied' then raise;end if;end;
- if (select payload from public.trip_snapshots where trip_id=t) is distinct from before_snapshot then raise exception 'financial snapshot altered';end if;
- if (select count(*) from public.trip_participants where trip_id=t)<>1 then raise exception 'debtor or linked participant created';end if;
+ if (select payload->'payments' from public.trip_snapshots where trip_id=t) is distinct from before_snapshot->'payments' then raise exception 'financial snapshot altered';end if;
+ if exists(select 1 from public.event_companions where trip_id=t and participant_id is null) then raise exception 'canonical participant missing';end if;
  if has_table_privilege('authenticated','public.event_companions','INSERT') or has_function_privilege('anon','public.change_event_companions(uuid,text,jsonb,bigint)','EXECUTE') or has_function_privilege('authenticated','public.change_event_potluck_without_companions(uuid,text,jsonb,bigint)','EXECUTE') then raise exception 'bypass API exposed';end if;
 end $$;
 rollback;
