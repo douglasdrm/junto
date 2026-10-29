@@ -1,0 +1,14 @@
+/* Convergência: original supplied artwork, supported by the approved UI palette. */
+:root{--color-primary:#315DE7;--color-accent:#DBF17A;--color-navy:#222C4C;--color-background:#F5F7FC;--ds-blue:#315DE7;--ds-navy:#222C4C;--ds-bg:#F5F7FC;--font-sans:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--brand-soft:color-mix(in srgb,var(--color-primary) 7%,white);--accent-soft:color-mix(in srgb,var(--color-accent) 22%,white)}
+body{font-family:var(--font-sans);background:radial-gradient(ellipse at 85% 0,#edf2ff80,transparent 58%),var(--color-background)}
+.junto-wordmark{display:block;width:154px;height:auto;max-width:100%;object-fit:contain;flex:none}
+.brand[data-logo-slot]{padding:0 8px;line-height:1;letter-spacing:normal}.brand-row{min-height:60px}.sidebar .subbrand{margin-top:12px}
+.mobile-head [data-logo-slot]{display:flex;align-items:center;justify-content:center;min-width:0}.mobile-head .junto-wordmark{width:108px}
+.welcome-brand{display:flex;flex-direction:column;align-items:flex-start;gap:9px;line-height:1;letter-spacing:normal}.welcome-brand .junto-wordmark{width:174px}.welcome-brand small{margin:0;letter-spacing:2px;line-height:1.5}
+.auth-brand{display:flex;align-items:center;line-height:1;letter-spacing:normal}.auth-brand .junto-wordmark{width:145px}
+.nav.active{background:var(--brand-soft);color:var(--color-primary);box-shadow:inset 3px 0 0 var(--color-primary)}.nav:hover{background:var(--brand-soft)}
+.button.primary,.welcome-primary{background:var(--color-primary);border-color:var(--color-primary);color:#fff}.button.primary:hover{background:#244bd0;border-color:#244bd0}
+.welcome{background:radial-gradient(ellipse at 90% 0,var(--accent-soft),transparent 44%),radial-gradient(ellipse at 0 80%,#e8efff,transparent 60%),var(--color-background)}
+.welcome-copy h1{color:var(--color-navy)}.welcome-copy h1 em{color:var(--color-primary)}.welcome-kicker i{background:var(--color-accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.plan-type-label{background:var(--brand-soft);color:var(--color-primary)}.plan-type-label.event{background:var(--accent-soft);color:var(--color-navy)}
+@media(max-width:600px){.welcome-brand .junto-wordmark{width:140px}.welcome-brand small{font-size:8px;letter-spacing:1.3px}.auth-brand .junto-wordmark{width:128px}.mobile-head .junto-wordmark{width:102px}}
