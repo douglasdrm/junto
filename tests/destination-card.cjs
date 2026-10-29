@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const {JSDOM,VirtualConsole}=require('jsdom'),root=path.resolve(__dirname,'..'),errors=[];
+let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<script src="([^"]+)"><\/script>/g,(m,src)=>src.startsWith('http')?'':`<script>${fs.readFileSync(path.join(root,src.split('?')[0]),'utf8').replaceAll('</script','<\\/script')}</script>`);
+const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!e.message.includes('Not implemented'))errors.push(e.message)});
+const dom=new JSDOM(html,{url:'https://junto-six-eta.vercel.app/',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){w.structuredClone=structuredClone;w.matchMedia=()=>({matches:false,addEventListener(){}});w.confirm=()=>true;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{}}});
+const w=dom.window,run=source=>{const s=w.document.createElement('script');s.textContent=source;w.document.body.append(s);s.remove()},tick=()=>new Promise(r=>setTimeout(r,35));
+(async()=>{await tick();run(`
+ window.fixture={trip:{eventType:'trip',name:'Viagem',start:'2027-01-07',end:'2027-01-10',region:'Teresópolis'},destination_details:{name:'Casa fixture',address:'Rua Exemplo, 123, Teresópolis',photos:['https://example.com/house.jpg','javascript:alert(1)']}};
+ document.querySelector('#app').innerHTML='<section id="guest-event-info" class="destination-card">'+destinationCard(window.fixture)+'</section>';
+ `);
+ const card=w.document.querySelector('#guest-event-info');assert.equal(card.querySelectorAll('.destination-gallery img').length,1);assert(!card.innerHTML.includes('javascript:'));assert(card.querySelector('iframe').src.includes(encodeURIComponent('Rua Exemplo, 123, Teresópolis')));
+ run(`window.days=[destinationCountdown('2027-01-07','2027-01-10','trip',new Date('2027-01-06T15:00:00Z')),destinationCountdown('2027-01-07','2027-01-10','trip',new Date('2027-01-07T15:00:00Z')),destinationCountdown('2027-01-07','2027-01-10','trip',new Date('2027-01-08T15:00:00Z')),destinationCountdown('2027-01-07','2027-01-10','trip',new Date('2027-01-11T15:00:00Z')),destinationCountdown('2027-02-30','','trip')];`);
+ assert.equal(w.days.join('|'),'Falta 1 dia|É hoje!|A viagem já começou|Viagem encerrada|Data a definir');
+ run(`window.regionMarkup=destinationCard({trip:window.fixture.trip});`);assert(w.regionMarkup.includes('Mapa da região'));assert(w.regionMarkup.includes('fotos ainda não'));
+ run(`juntoOnline.user={id:'owner'};juntoOnline.participantTripId=null;db.active='local';db.trips=[{id:'local',name:'Teste',region:'Cidade',destinationDetails:{photos:['https://example.com/existing.jpg']}}];activeOnlineLink=()=>({tripId:'remote'});window.saved=[];syncTripSnapshotById=async id=>{window.saved.push({id,details:structuredClone(trip().destinationDetails)});return true};render=()=>{};openDestinationEditor();`);
+ w.document.querySelector('[name=destinationName]').value='Casa da Serra';w.document.querySelector('[name=destinationAddress]').value='Rua da Casa, 12';w.document.querySelector('#destination-editor .primary').click();await tick();
+ assert.equal(w.saved.length,1);assert.equal(w.saved[0].details.name,'Casa da Serra');assert.equal(w.saved[0].details.photos[0],'https://example.com/existing.jpg');assert(!w.document.querySelector('#destination-editor'));
+ run(`window.resizeDimensions=[];createImageBitmap=async()=>({width:1000,height:1500,close(){}});HTMLCanvasElement.prototype.getContext=()=>({drawImage(){}});HTMLCanvasElement.prototype.toDataURL=function(){window.resizeDimensions=[this.width,this.height];return 'data:image/jpeg;base64,AAA'};window.resizing=destinationResize(new File(['x'],'photo.jpg',{type:'image/jpeg'}));`);await w.resizing;assert(w.resizeDimensions[1]===1280&&w.resizeDimensions[0]<1280,'Portrait photos must keep their proportions');
+ await tick();assert.deepEqual(errors,[]);dom.window.close();console.log('PASS destination card: address/map, safe photos, countdown states, save and proportional photo resizing');
+})().catch(e=>{console.error(e);dom.window.close();process.exitCode=1});
