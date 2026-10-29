@@ -22,9 +22,14 @@ async function createExistingAccessLink(personId,button){
  try{
   if(!await syncTripSnapshotById(db.active))return;
   const {data,error}=await juntoOnline.client.rpc('create_participant_access_link',{target_trip:link.tripId,local_participant_id:personId});if(error)throw error;
+  if(typeof data!=='string'||!/^[a-f0-9]{64}$/.test(data))throw Error('O servidor não confirmou um link individual válido.');
+  const preview=await juntoOnline.client.rpc('preview_participant_access_link',{raw_token:data});
+  if(preview.error)throw preview.error;
+  if(preview.data?.status!=='open')throw Error('O vínculo individual não foi encontrado após a criação. Gere novamente.');
+  if(activeOnlineLink()?.tripId!==link.tripId)return;
   const url=new URL(location.pathname,location.origin);url.searchParams.set('invite',`access:${data}`);
   const text=`${person.name}, acesse seu cadastro em “${trip().name}” no Juntô. Entre ou crie sua conta e solicite o vínculo: ${url}`;
-  modal('Link pronto',`Envie este link somente para ${person.name}.`, `<div class="stack"><label class="field"><span>Link individual</span><input id="participantInviteUrl" value="${esc(url.toString())}" readonly></label><p class="help">Válido por 7 dias. Gerar outro link cancela o anterior. O cadastro e os pagamentos existentes serão preservados.</p><div class="actions"><button class="button primary" data-copy-participant-invite>Copiar link</button><a class="button secondary" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Compartilhar no WhatsApp</a></div></div>`);
+  modal('Vínculo individual confirmado',`Envie este link somente para ${person.name}.`, `<div class="stack"><label class="field"><span>Link individual</span><input id="participantInviteUrl" value="${esc(url.toString())}" readonly></label><p class="help">Válido por 7 dias. Gerar outro link cancela o anterior. O cadastro e os pagamentos existentes serão preservados.</p><div class="actions"><button class="button primary" data-copy-participant-invite>Copiar link</button><a class="button secondary" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Compartilhar no WhatsApp</a></div></div>`);
  }catch(error){accessLinkFailure(error)}finally{if(button?.isConnected)button.disabled=false}
 }
 function accessLinkFailure(error){
