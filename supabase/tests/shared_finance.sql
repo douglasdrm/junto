@@ -21,7 +21,7 @@ begin
  'fundYields',jsonb_build_array(jsonb_build_object('amountCents',999999)));
  insert into public.trip_snapshots(trip_id,payload,revision,updated_by) values(t,doc,1,own);
  summary_admin:=public.get_trip_financial_summary(t);
- if summary_admin->>'budget_cents'<>'45000' or summary_admin->>'collected_cents'<>'9000' or summary_admin->>'yield_cents'<>'700' or summary_admin->>'available_cents'<>'13300' or summary_admin->>'remaining_cents'<>'30300' or summary_admin->>'remaining_contributions_cents'<>'31000' then raise exception 'shared summary formula mismatch: %',summary_admin;end if;
+ if summary_admin->>'budget_cents'<>'45000' or summary_admin->>'collected_cents'<>'9000' or summary_admin->>'yield_cents'<>'700' or summary_admin->>'available_cents'<>'13300' or summary_admin->>'remaining_cents'<>'31000' or summary_admin->>'remaining_contributions_cents'<>'31000' then raise exception 'shared summary formula mismatch: %',summary_admin;end if;
  if summary_admin ? 'person_goals' then raise exception 'other peoples goals exposed';end if;
  perform set_config('request.jwt.claim.sub',guest::text,true);
  if public.get_trip_financial_summary(t)<>summary_admin or public.get_participant_trip_view(t)->'summary'<>summary_admin then raise exception 'administrator and guest totals differ';end if;
@@ -34,6 +34,12 @@ begin
  perform set_config('request.jwt.claim.sub',own::text,true);
  r:=public.get_my_trip_financial_report(t);
  if r->>'available'<>'false' then raise exception 'organizer automatically received another persons report';end if;
+ -- Credits and unassigned cash cannot settle another participant's receivable.
+ s:=public.compute_trip_financials(jsonb_set(doc,'{payments}',jsonb_build_array(
+  jsonb_build_object('amountCents',25000,'allocations',jsonb_build_array(jsonb_build_object('participantId','self','amountCents',25000))),
+  jsonb_build_object('amountCents',5000,'allocations',jsonb_build_array(jsonb_build_object('participantId','other','amountCents',5000))),
+  jsonb_build_object('amountCents',10000,'allocations','[]'::jsonb))));
+ if s->>'remaining_cents'<>'15000' or s->>'overpaid_contributions_cents'<>'5000' or s->>'unallocated_contributions_cents'<>'10000' or s->>'covered_contributions_cents'<>'25000' then raise exception 'credits or unassigned money erased someone elses debt';end if;
  -- Cost split mirrors the existing allocation engine, including consumption groups and opening credit.
  doc:=jsonb_set(doc,'{trip,contributionPlan}',jsonb_build_object('mode','cost_split','costSource','finance','openingBalanceCents',1,'participantIds',jsonb_build_array('self','other'),'months',jsonb_build_array(month_a)));
  doc:=jsonb_set(doc,'{expenses}',jsonb_build_array(jsonb_build_object('plannedCents',10001,'paidCents',0,'consumptionGroupId','group')));

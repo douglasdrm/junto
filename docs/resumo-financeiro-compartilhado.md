@@ -4,11 +4,11 @@ Administrador e participante consultam o mesmo cálculo sobre o snapshot online 
 
 - Previsão final: no modo de caixinha, saldo inicial mais as contribuições configuradas; no rateio, os custos considerados no plano.
 - Arrecadado: contribuições recebidas, sem somar saldo anterior nem rendimento como se fossem pagamentos de participantes.
-- Falta para a previsão: máximo entre zero e previsão menos saldo inicial, arrecadado e rendimento líquido.
+- Falta arrecadar: soma, participante por participante, do saldo positivo entre sua contribuição prevista e os pagamentos atribuídos ao seu cadastro. Um crédito de uma pessoa não abate a dívida de outra; dinheiro ainda sem atribuição não quita parcelas.
 - Disponível: saldo inicial mais contribuições recebidas e rendimento líquido, menos despesas efetivamente pagas.
 - Compras discriminadas não são contadas novamente quando já existe um lançamento geral de mercado. Rendimento usa a última conferência líquida, ou os lançamentos de rendimento se não houver conferência.
 
-O valor para alcançar a meta global não substitui as parcelas individuais configuradas. Rendimentos não são automaticamente lançados como contribuições pessoais ou perdão de parcelas.
+O total a receber é conciliado com os relatórios individuais e com os registros de pagamentos, sem usar saldo inicial, rendimentos ou despesas como quitação de contribuições. A previsão final de arrecadação e o saldo disponível mantêm suas definições separadas.
 
 ## Meu financeiro
 
