@@ -1,0 +1,11 @@
+.potluck-panel{margin-block:1.2rem;background:linear-gradient(135deg,#fff 55%,#f2f6ff)}
+.potluck-eyebrow{font-size:.72rem;letter-spacing:.1em;color:#3158d5;font-weight:800}
+.potluck-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:16px;margin-top:18px}
+.potluck-item{padding:18px;border:1px solid #dbe3f6;border-radius:20px;background:#fff;min-width:0}
+.potluck-item h3{margin:6px 0;overflow-wrap:anywhere}.potluck-item small{display:block;color:#63708c}.potluck-item p{overflow-wrap:anywhere}
+.potluck-covered{border-color:#abd8bd;background:#f7fcf8}.potluck-pill{padding:6px 10px;border-radius:12px;background:#fff3d9;font-size:.8rem;white-space:normal}.potluck-covered .potluck-pill{background:#dff3e5;color:#285b3d}
+.potluck-mine{background:#ecedff;border-radius:18px;padding:16px;margin-top:16px}.potluck-mine h3{margin-top:0}.potluck-mine p{margin-bottom:0;overflow-wrap:anywhere}
+.potluck-claims{list-style:none;padding:0}.potluck-claims li{padding:12px 0;border-bottom:1px solid #e7ebf5;overflow-wrap:anywhere}.potluck-claims .record-actions{margin-top:8px}
+.potluck-panel .section-head,.potluck-panel .record-actions{flex-wrap:wrap}.potluck-panel .section-head>div{min-width:0}.potluck-panel button{white-space:normal;max-width:100%}
+.participant-online-view.potluck-only #guest-shopping,.participant-online-view.potluck-only [data-guest-section="guest-shopping"]{display:none}
+@media(max-width:600px){.potluck-panel{padding:16px}.potluck-grid{grid-template-columns:minmax(0,1fr)}.potluck-item{padding:14px}.potluck-panel .record-actions{gap:8px}.potluck-panel .section-head{align-items:flex-start}}
