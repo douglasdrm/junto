@@ -7,7 +7,7 @@ const w=dom.window,run=source=>{const s=w.document.createElement('script');s.tex
 (async()=>{await tick();run(`
  window.calls=[];window.fixture={organizer:true,can_choose:true,mode:'potluck',allow_extras:true,revision:1,items:[{id:'dish',name:'Salpicão',category:'Acompanhamentos',quantity:2,unit:'travessas',note:'Serve 8 pessoas',from_list:true,claims:[]}]};
  juntoOnline.user={id:'owner'};juntoOnline.participantTripId='remote';purchaseTripId=()=>juntoOnline.participantTripId;
- juntoOnline.client={rpc:async(name,args)=>{window.calls.push({name,args});if(name==='get_event_potluck')return {data:structuredClone(window.fixture)};if(name==='change_event_potluck'){if(args.action==='settings'){window.fixture.allow_extras=args.body.allow_extras;window.fixture.mode=args.body.mode}if(args.action==='claim')window.fixture.items[0].claims=[{id:'claim',own:true,label:args.body.label||'Pessoa',quantity:Number(args.body.quantity),scope:args.body.scope,delivered:false}];if(args.action==='unclaim')window.fixture.items[0].claims=[];window.fixture.revision++;return {data:structuredClone(window.fixture)}}return {data:[]}}};
+ juntoOnline.client={rpc:async(name,args)=>{window.calls.push({name,args});if(name==='get_event_potluck')return {data:structuredClone(window.fixture)};if(name==='change_event_potluck'){if(args.action==='settings'){window.fixture.allow_extras=args.body.allow_extras;window.fixture.mode=args.body.mode}if(args.action==='item')window.fixture.items.push({...args.body,id:'added-item',from_list:true,claims:[]});if(args.action==='claim')window.fixture.items[0].claims=[{id:'claim',own:true,label:args.body.label||'Pessoa',quantity:Number(args.body.quantity),scope:args.body.scope,delivered:false}];if(args.action==='unclaim')window.fixture.items[0].claims=[];window.fixture.revision++;return {data:structuredClone(window.fixture)}}return {data:[]}}};
  document.querySelector('#app').innerHTML='<div class="participant-portal"></div>';window.refresh=decoratePotluck(true);`);await w.refresh;
  assert(w.document.querySelector('[data-potluck-extra]'));assert(w.document.querySelector('[data-potluck-add]'));assert(w.document.querySelector('[data-potluck-choose="dish"]'));
  w.document.querySelector('[data-potluck-choose]').click();await tick();w.document.querySelector('[name=quantity]').value='1';w.document.querySelector('[name=scope]').value='family';w.document.querySelector('[name=label]').value='Casal teste';w.document.querySelector('#potluck-form .primary').click();await tick();
@@ -19,6 +19,17 @@ const w=dom.window,run=source=>{const s=w.document.createElement('script');s.tex
  w.document.querySelector('[data-potluck-unclaim]').click();await tick();assert(w.document.querySelector('.potluck-mine').textContent.includes('ainda não escolheu'));
  run(`window.fixture.items=[];window.fixture.allow_extras=true;window.refresh=decoratePotluck(true)`);await w.refresh;assert(w.document.querySelector('[data-potluck-extra]'));assert(w.document.querySelector('#event-potluck').textContent.includes('lista está aberta'));
  w.document.querySelector('[data-potluck-extra]').click();await tick();assert(w.document.querySelector('#potluck-form [name=name]'));
+ // Adding a list item includes a hidden field named id: it must not mask the form identifier.
+ run(`closeModal();window.fixture.organizer=true;window.fixture.mode='mixed';window.refresh=decoratePotluck(true)`);await w.refresh;
+ w.document.querySelector('[data-potluck-add]').click();await tick();
+ Object.defineProperty(w.document.querySelector('#potluck-form'),'id',{value:w.document.querySelector('#potluck-form [name=id]'),configurable:true});
+ w.document.querySelector('#potluck-form [name=name]').value='Arroz de Natal';
+ w.document.querySelector('#potluck-form [name=quantity]').value='2';
+ w.document.querySelector('#potluck-form [name=unit]').value='travessas';
+ w.document.querySelector('#potluck-form .primary').click();await tick();
+ assert(w.calls.some(c=>c.name==='change_event_potluck'&&c.args.action==='item'&&c.args.body.name==='Arroz de Natal'),'Save must reach the server even with hidden name=id');
+ assert(!w.document.querySelector('#potluck-form'),'Successful save must close the modal');
+ assert(w.document.querySelector('.potluck-grid').textContent.includes('Arroz de Natal'));
  // Creation preferences survive state-building and travel creation remains untouched.
  run(`quickMeta={type:'event',extras:{potluckMode:'mixed',potluckAllowExtras:false,mode:'later',pix:'',dueDay:'',start:'',end:'',multi:false,useOpening:false}};window.creationMarkup=creationDetails();window.state={trips:[{id:'new',eventType:'event'}],people:[]};applyCreationSettings(window.state,'new');`);
  assert(w.creationMarkup.includes('name="potluckMode"'));assert.equal(w.state.trips[0].potluckMode,'mixed');assert.equal(w.state.trips[0].potluckAllowExtras,false);
