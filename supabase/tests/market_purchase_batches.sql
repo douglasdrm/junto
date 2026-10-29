@@ -13,7 +13,7 @@ begin
  insert into public.trip_participants(trip_id,member_id,local_source_id) values(t,m,'guest');
  insert into public.member_profile_links(member_id,profile_id,status,authorized_by) values(m,guest,'active',own);
  original_payments:=jsonb_build_array(jsonb_build_object('id','old-payment','amountCents',12345));
- insert into public.trip_snapshots(trip_id,payload,revision,updated_by) values(t,jsonb_build_object('trip',jsonb_build_object('id',t),'shoppingYear',2026,'shoppingItems',jsonb_build_array(jsonb_build_object('id','a','year',2026,'name','Açúcar','quantity',1,'unitPriceCents',500,'actualTotalCents',500,'purchased',false),jsonb_build_object('id','b','year',2026,'name','Arroz','quantity',1,'unitPriceCents',1000,'actualTotalCents',1000,'purchased',false),jsonb_build_object('id','c','year',2026,'name','Sal','quantity',1,'unitPriceCents',300,'actualTotalCents',300,'purchased',false)),'payments',original_payments,'expenses','[]'::jsonb),1,own);
+ insert into public.trip_snapshots(trip_id,payload,revision,updated_by) values(t,jsonb_build_object('trip',jsonb_build_object('id',t),'shoppingYear',2026,'shoppingItems',jsonb_build_array(jsonb_build_object('id','a','year',2026,'name','Açúcar','category','Mercearia','quantity',1,'unitPriceCents',500,'actualTotalCents',500,'purchased',false),jsonb_build_object('id','b','year',2026,'name','Arroz','quantity',1,'unitPriceCents',1000,'actualTotalCents',1000,'purchased',false),jsonb_build_object('id','c','year',2026,'name','Sal','quantity',1,'unitPriceCents',300,'actualTotalCents',300,'purchased',false)),'payments',original_payments,'expenses','[]'::jsonb),1,own);
  perform set_config('request.jwt.claim.sub',guest::text,true);
  b:=public.start_market_purchase(t);
  if public.start_market_purchase(t)<>b then raise exception 'draft not resumed'; end if;
@@ -22,6 +22,7 @@ begin
  revision:=public.save_market_purchase_item(b,'{"id":"b","source_item_id":"b","name":"Arroz","quantity":1,"total_cents":1100,"picked":true}',revision);
  revision:=public.save_market_purchase_item(b,'{"id":"c","source_item_id":"c","name":"Sal","quantity":1,"total_cents":300,"picked":false}',revision);
  state:=public.get_market_purchase_workspace(t);
+ if not exists(select 1 from jsonb_array_elements(state->'items') x where x->>'name'='Açúcar' and x->>'category'='Mercearia') then raise exception 'shopping category not shared';end if;
  if jsonb_array_length(state->'batches'->0->'items')<>3 then raise exception 'draft items missing on reload'; end if;
  if (select count(*) from public.shopping_purchase_submissions where trip_id=t)<>0 then raise exception 'draft affected official purchases'; end if;
  begin perform public.finalize_market_purchase(b,revision,'Mercado teste',current_date,'personal',2400,null); raise exception 'mismatched total accepted'; exception when others then if sqlerrm='mismatched total accepted' then raise; end if; end;
@@ -54,6 +55,20 @@ begin
  perform public.finalize_market_purchase(b2,revision,'Outra compra',current_date,'fund',1500,null);
  if (select status from public.shopping_purchase_batches where id=b2)<>'confirmed' then raise exception 'administrator checkout not confirmed'; end if;
  if (select payload->'payments' from public.trip_snapshots where trip_id=t)<>original_payments then raise exception 'payments changed'; end if;
+ -- Cancelling affects only one's own unfinalized draft, never official data.
+ begin perform public.cancel_market_purchase(b2,revision);raise exception 'confirmed purchase cancelled';exception when others then if sqlerrm<>'purchase already finalized' then raise;end if;end;
+ b2:=public.start_market_purchase(t);
+ perform set_config('request.jwt.claim.sub',guest::text,true);
+ begin perform public.cancel_market_purchase(b2,1);raise exception 'another user cancelled draft';exception when others then if sqlerrm<>'access denied' then raise;end if;end;
+ perform set_config('request.jwt.claim.sub',own::text,true);
+ begin perform public.cancel_market_purchase(b2,2);raise exception 'stale draft cancelled';exception when others then if sqlerrm not like 'draft changed%' then raise;end if;end;
+ state:=(select payload from public.trip_snapshots where trip_id=t);
+ perform public.cancel_market_purchase(b2,1);
+ if exists(select 1 from public.shopping_purchase_batches where id=b2) then raise exception 'empty draft remains';end if;
+ b2:=public.start_market_purchase(t);
+ revision:=public.save_market_purchase_item(b2,'{"id":"cancel-extra","name":"Do not purchase","quantity":1,"total_cents":100,"picked":true}',1);
+ perform public.cancel_market_purchase(b2,revision);
+ if (select payload from public.trip_snapshots where trip_id=t)<>state then raise exception 'cancel changed official data';end if;
  if has_function_privilege('authenticated','public.review_shopping_purchase_item(uuid,boolean)','execute') or has_function_privilege('anon','public.start_market_purchase(uuid)','execute') then raise exception 'internal function exposed'; end if;
 end $$;
 rollback;
