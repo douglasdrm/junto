@@ -9,3 +9,11 @@
 .potluck-panel .section-head,.potluck-panel .record-actions{flex-wrap:wrap}.potluck-panel .section-head>div{min-width:0}.potluck-panel button{white-space:normal;max-width:100%}
 .participant-online-view.potluck-only #guest-shopping,.participant-online-view.potluck-only [data-guest-section="guest-shopping"]{display:none}
 @media(max-width:600px){.potluck-panel{padding:16px}.potluck-grid{grid-template-columns:minmax(0,1fr)}.potluck-item{padding:14px}.potluck-panel .record-actions{gap:8px}.potluck-panel .section-head{align-items:flex-start}}
+.potluck-status,.attendance-count{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #eed49a;border-radius:15px;background:#fff8e8;color:#865f16;flex-shrink:0;line-height:1.25}
+.potluck-status strong,.attendance-count strong{display:block;font-size:.88rem;font-weight:800}.potluck-status small,.attendance-count small{display:block;color:inherit;font-size:.75rem;margin-top:3px}
+.potluck-status-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#ffe9b5;font-size:1.15rem}
+.potluck-status.complete{border-color:#b8ddc5;background:#edf9f0;color:#246b43}.potluck-status.complete .potluck-status-icon{background:#ccecd7}
+.potluck-quantity-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#64728e;font-size:.82rem;margin-top:18px}.potluck-quantity-summary strong{color:#253359;font-size:1.18rem}.potluck-quantity-summary>b{color:#3256d4}
+.potluck-progress{height:7px;border-radius:20px;background:#eaf0fb;overflow:hidden;margin:9px 0 12px}.potluck-progress>span{display:block;height:100%;background:#5976ef;border-radius:inherit}.potluck-covered .potluck-progress>span{background:#52a576}.potluck-item-note{font-size:.82rem;color:#64728e}
+.attendance-count{background:#eef1ff;border-color:#d7dfff;color:#3654bc;min-width:122px}.attendance-count strong{font-size:1.25rem}.attendance-count small{margin:0;font-weight:600}
+@media(max-width:600px){.potluck-status{padding:8px 10px}.potluck-status strong{font-size:.8rem}.potluck-item>.section-head{gap:10px}.attendance-count{min-width:auto;padding:8px 12px}}

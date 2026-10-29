@@ -4,3 +4,5 @@
 .companion-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .companion-row small{display:block;margin-top:4px;color:#677696}
 @media(max-width:600px){.companion-row{align-items:flex-start;flex-direction:column}.companion-row .record-actions{flex-wrap:wrap}#event-companions .section-head{align-items:flex-start;flex-wrap:wrap}#event-companions .record-actions{flex-wrap:wrap;max-width:100%}}
+.companion-payment-choice{padding:12px;border:1px solid #d6def8;border-radius:12px;background:#f4f6ff}.companion-list summary .attendance-count{margin-left:auto}
+.attendee-note{display:block;color:#677696;font-size:.8rem;margin-top:4px}
