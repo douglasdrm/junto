@@ -1,0 +1,31 @@
+begin;
+do $$
+declare own uuid; guest uuid; g uuid:=gen_random_uuid(); t uuid:=gen_random_uuid(); m uuid:=gen_random_uuid(); p uuid:=gen_random_uuid(); token text; link_id uuid; doc jsonb; snapshot jsonb:='{"trip":{"id":"local-trip"},"people":[{"id":"existing-person","customTargetCents":12000}],"payments":[{"amountCents":500}]}';
+begin
+ select id into own from auth.users where not coalesce(is_anonymous,false) and email_confirmed_at is not null order by created_at limit 1;
+ select id into guest from auth.users where not coalesce(is_anonymous,false) and email_confirmed_at is not null and id<>own order by created_at limit 1;
+ perform set_config('request.jwt.claim.sub',own::text,true);
+ insert into public.travel_groups(id,owner_id,name) values(g,own,'Temporary existing account access');
+ insert into public.trips(id,group_id,organizer_id,name) values(t,g,own,'Temporary existing account access');
+ insert into public.trip_access(trip_id,profile_id,role,granted_by) values(t,own,'organizer',own);
+ insert into public.group_members(id,group_id,display_name,created_by) values(m,g,'Guest fixture',own);
+ insert into public.trip_participants(id,trip_id,member_id,local_source_id) values(p,t,m,'existing-person');
+ insert into public.member_profile_links(member_id,profile_id,status,authorized_by) values(m,guest,'active',own);
+ insert into public.trip_snapshots(trip_id,payload,revision,updated_by) values(t,snapshot,1,own);
+ token:=public.create_participant_access_link(t,'existing-person');
+ if public.preview_participant_access_link(token)->>'status'<>'open' then raise exception 'existing account in new event blocked';end if;
+ begin perform public.request_participant_access(token);raise exception 'different account claimed existing person';exception when others then if sqlerrm<>'participant already linked' then raise;end if;end;
+ perform set_config('request.jwt.claim.sub',guest::text,true);
+ perform public.request_participant_access(token);
+ if public.can_access_trip(t) then raise exception 'request granted access before approval';end if;
+ select id into link_id from public.participant_access_links where token_hash=encode(extensions.digest(token,'sha256'),'hex');
+ perform set_config('request.jwt.claim.sub',own::text,true);
+ perform public.review_participant_access_link(link_id,true);
+ if not exists(select 1 from public.trip_access where trip_id=t and profile_id=guest and role='participant') then raise exception 'approved access missing';end if;
+ token:=public.create_participant_access_link(t,'existing-person');
+ if public.preview_participant_access_link(token)->>'status'<>'approved' then raise exception 'resend existing access blocked';end if;
+ if (select count(*) from public.trip_participants where trip_id=t)<>1 then raise exception 'duplicate participant';end if;
+ select payload into doc from public.trip_snapshots where trip_id=t;
+ if doc<>snapshot then raise exception 'snapshot/history modified';end if;
+end $$;
+rollback;

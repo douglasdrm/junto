@@ -25,11 +25,12 @@ async function createExistingAccessLink(personId,button){
   if(typeof data!=='string'||!/^[a-f0-9]{64}$/.test(data))throw Error('O servidor não confirmou um link individual válido.');
   const preview=await juntoOnline.client.rpc('preview_participant_access_link',{raw_token:data});
   if(preview.error)throw preview.error;
-  if(preview.data?.status!=='open')throw Error('O vínculo individual não foi encontrado após a criação. Gere novamente.');
+  if(!['open','approved'].includes(preview.data?.status))throw Error('O vínculo individual não foi encontrado após a criação. Gere novamente.');
   if(activeOnlineLink()?.tripId!==link.tripId)return;
   const url=new URL(location.pathname,location.origin);url.searchParams.set('invite',`access:${data}`);
   const text=`${person.name}, acesse seu cadastro em “${trip().name}” no Juntô. Entre ou crie sua conta e solicite o vínculo: ${url}`;
-  modal('Vínculo individual confirmado',`Envie este link somente para ${person.name}.`, `<div class="stack"><label class="field"><span>Link individual</span><input id="participantInviteUrl" value="${esc(url.toString())}" readonly></label><p class="help">Válido por 7 dias. Gerar outro link cancela o anterior. O cadastro e os pagamentos existentes serão preservados.</p><div class="actions"><button class="button primary" data-copy-participant-invite>Copiar link</button><a class="button secondary" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Compartilhar no WhatsApp</a></div></div>`);
+  const alreadyLinked=preview.data.status==='approved';
+  modal(alreadyLinked?'Reenviar acesso existente':'Vínculo individual confirmado',`Envie este link somente para ${person.name}.`, `<div class="stack"><label class="field"><span>Link individual</span><input id="existingParticipantAccessUrl" value="${esc(url.toString())}" readonly></label><p class="help">${alreadyLinked?'Esta pessoa já tem acesso. O link permite entrar com a conta vinculada, sem criar outro participante.':'Válido por 7 dias. Gerar outro link cancela o anterior.'} O cadastro e os pagamentos existentes serão preservados.</p><div class="actions"><button class="button primary" data-copy-existing-access>Copiar link</button><a class="button secondary" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Compartilhar no WhatsApp</a></div></div>`);
  }catch(error){accessLinkFailure(error)}finally{if(button?.isConnected)button.disabled=false}
 }
 function accessLinkFailure(error){
@@ -89,4 +90,20 @@ window.addEventListener('click',async event=>{
    toast(target.dataset.approveAccess==='true'?'Vínculo aprovado.':'Link ou solicitação encerrado.');await manageParticipantAccess();return;
   }
  }catch(error){accessLinkFailure(error)}finally{if(target.isConnected)target.disabled=false}
+},true);
+
+// Route a legacy ?join address by the server's registered invitation type.
+async function resolvePendingIndividualAccess(){
+ const token=pendingJoin();if(!/^[a-f0-9]{64}$/.test(token)||!juntoOnline.client)return;
+ const {data,error}=await juntoOnline.client.rpc('preview_participant_access_link',{raw_token:token});
+ if(error||!data||!['open','requested','approved'].includes(data.status))return;
+ if(pendingJoin()!==token)return;
+ localStorage.removeItem('junto_pending_join');localStorage.setItem('junto_pending_invite',`access:${token}`);
+}
+window.addEventListener('click',async event=>{
+ const button=event.target.closest('[data-copy-existing-access]');if(!button)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ const input=button.closest('.modal')?.querySelector('#existingParticipantAccessUrl'),value=input?.value;
+ if(!value||!new URL(value).searchParams.get('invite')?.startsWith('access:'))return toast('O link individual ainda não está pronto. Gere novamente.','error');
+ try{await navigator.clipboard.writeText(value);toast('Link individual copiado.')}catch{input.select();toast('Selecione e copie o link individual exibido.','error')}
 },true);
