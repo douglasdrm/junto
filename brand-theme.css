@@ -160,7 +160,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 .photo-map-hero .visual-event-cover{position:relative;min-height:310px;height:auto;display:flex;align-items:stretch;justify-content:flex-end;flex-direction:column;background:var(--color-navy)}
 .photo-map-hero .visual-event-cover>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .photo-map-hero .visual-cover-empty{position:absolute;inset:0;height:100%;background:linear-gradient(135deg,#222c4c,#315de7);color:#fff;padding-bottom:180px}
-.photo-map-hero .visual-event-body{position:relative;z-index:1;width:100%;padding:64px 24px 22px;background:linear-gradient(transparent,#101a32b8 35%,#101a32ed);color:#fff}
+.photo-map-hero .visual-event-body{position:relative;z-index:1;width:100%;padding:64px 24px 22px;background:linear-gradient(transparent,#101a3226 40%,#101a3259);color:#fff}
 .photo-map-hero h1,.photo-map-hero .visual-event-body h2,.photo-map-hero .visual-event-body>.help{color:#fff}
 .photo-map-hero h1{font-size:clamp(26px,3vw,40px)}
 .photo-map-hero .visual-event-details>span{color:#fff;background:#ffffff1f;backdrop-filter:blur(6px)}
@@ -190,3 +190,13 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
  .planning-hero-footer .button{font-size:12px;padding:9px 12px;max-width:100%;white-space:normal}
  .planning-hero-photos{max-width:100%}.potluck-row-who{font-size:12px;line-height:1.6}
 }
+
+/* Keep menu entries, account and synchronization status in separate flow areas. */
+.sidebar{display:flex;flex-direction:column;overflow:hidden;padding-bottom:16px}
+.sidebar>.brand-row,.sidebar>.subbrand{flex-shrink:0}
+.sidebar>#nav{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;align-content:start;padding-bottom:12px}
+.sidebar>.sidebar-account{position:static;flex:0 0 auto;margin-top:8px;padding:12px 0 0;border-top:1px solid var(--ds-line)}
+.sidebar>.side-note{position:static;flex:0 0 auto;margin:10px 0 0;padding:0 4px;line-height:1.5;min-height:20px;white-space:normal}
+.photo-map-hero .visual-event-body h1,.photo-map-hero .visual-event-body h2,.photo-map-hero .visual-event-body>.help{ text-shadow:0 1px 5px #0009 }
+.photo-map-hero .destination-countdown{left:16px;right:auto}
+@media(max-width:760px){.sidebar{padding-bottom:max(16px,env(safe-area-inset-bottom))}}
