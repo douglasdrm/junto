@@ -38,15 +38,17 @@ function integrateDestinationHero(card){
  const previous=card.parentElement;card.classList.add('planning-hero-destination');
  // Dates and city already belong to the identity above; retain detailed logistics.
  card.querySelector('.destination-dates')?.remove();
- const media=document.createElement('div');media.className='planning-destination-media';
- const mapBlock=document.createElement('div'),photoBlock=document.createElement('div');
- for(const node of [...card.children]){if(node.matches('.destination-map,.destination-map-caption'))mapBlock.append(node);else if(node.matches('h3,.destination-gallery')||(node.matches('.destination-empty')&&node.textContent.includes('fotos')))photoBlock.append(node)}
- if(mapBlock.children.length)media.append(mapBlock);if(photoBlock.children.length)media.append(photoBlock);card.append(media);
- const countdown=card.querySelector('.destination-countdown');if(countdown)hero.querySelector('.visual-event-body')?.prepend(countdown);
- // Keep the photo strip adjacent to the cover, using the existing enlargement actions.
- if(photoBlock.querySelector('.destination-gallery')){photoBlock.className='planning-hero-photos';hero.querySelector('.visual-event-cover')?.append(photoBlock);photoBlock.querySelector('h3')?.remove()}
- else photoBlock.remove();
- hero.append(card);hero.classList.add('has-destination');
+ const cover=hero.querySelector('.visual-event-cover'),body=hero.querySelector('.visual-event-body');
+ const footer=document.createElement('div');footer.className='planning-hero-footer';
+ const actions=body?.querySelector('.planning-hero-actions');
+ if(actions){body.querySelectorAll('[data-destination-edit]').forEach(button=>actions.append(button));footer.append(actions)}
+ const gallery=card.querySelector('.destination-gallery');
+ if(gallery){const strip=document.createElement('div');strip.className='planning-hero-photos';strip.append(gallery);footer.append(strip)}
+ card.querySelector('h3')?.remove();
+ card.querySelectorAll('.destination-empty').forEach(node=>{if(node.textContent.includes('fotos'))node.remove()});
+ const countdown=card.querySelector('.destination-countdown');if(countdown&&body)body.prepend(countdown);
+ if(body&&cover)cover.append(body);
+ hero.append(card,footer);hero.classList.add('has-destination','photo-map-hero');
  if(previous?.classList.contains('guest-single-info')&&!previous.children.length)previous.remove();
 }
 function decorateAdminDestinationHero(){
