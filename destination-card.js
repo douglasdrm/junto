@@ -14,7 +14,7 @@ function destinationCard(data){const item=data.trip||{},details=data.destination
 }
 let destinationVisiblePhotos=[];
 const destinationGuestSections=renderGuestSharedSections;
-renderGuestSharedSections=function(data){destinationGuestSections(data);const card=document.querySelector('#guest-event-info');if(!card)return;destinationVisiblePhotos=(data.destination_details?.photos||[]).map(destinationPhotoUrl).filter(Boolean).slice(0,6);card.classList.add('destination-card');card.innerHTML=destinationCard(data)};
+renderGuestSharedSections=function(data){destinationGuestSections(data);const card=document.querySelector('#guest-event-info');if(!card)return;destinationVisiblePhotos=(data.destination_details?.photos||[]).map(destinationPhotoUrl).filter(Boolean).slice(0,6);card.classList.add('destination-card');card.innerHTML=destinationCard(data);integrateDestinationHero(card)};
 const destinationEventCard=visualEventCard;
 visualEventCard=function(item,remoteId,members=[]){const html=destinationEventCard(item,remoteId,members);if(!remoteId||juntoOnline.participantTripId)return html;const template=document.createElement('template');template.innerHTML=html;template.content.querySelector('.visual-event-body')?.insertAdjacentHTML('beforeend',`<button type="button" class="button secondary small" data-destination-edit>Configurações ${isEventPlan(item)?'do evento':'da viagem'}</button>`);return template.innerHTML};
 function destinationDraftPhotos(){const root=document.querySelector('[data-destination-draft-photos]');if(root&&destinationDraft)root.innerHTML=destinationDraft.photos.map((url,i)=>`<div><img src="${esc(url)}" alt="Foto ${i+1}"><button type="button" class="button ghost small" data-destination-remove="${i}" aria-label="Remover foto ${i+1}">Remover</button></div>`).join('')}
@@ -31,3 +31,27 @@ setInterval(refreshDestinationCountdowns,60000);window.addEventListener('focus',
 function decorateTripSettings(){if(!juntoOnline.user||juntoOnline.participantTripId||!activeOnlineLink()||!trip()||db.legacyPage||db.simplePage==='viagens')return;const label=isEventPlan(trip())?'Configurações do evento':'Configurações da viagem',nav=document.querySelector('#nav');if(nav&&!nav.querySelector('[data-trip-settings]'))nav.insertAdjacentHTML('beforeend',`<button type="button" class="nav" data-trip-settings><span aria-hidden="true">⚙</span>${label}</button>`);const head=document.querySelector('#app > .page-head');if(head&&!head.querySelector('[data-trip-settings]'))(head.querySelector('.actions,.record-actions')||head).insertAdjacentHTML('beforeend',`<button type="button" class="button secondary small" data-trip-settings>${label}</button>`)}
 const renderBeforeTripSettings=render;render=function(...args){renderBeforeTripSettings(...args);decorateTripSettings()};
 window.addEventListener('click',event=>{if(!event.target.closest('[data-trip-settings]'))return;event.preventDefault();event.stopImmediatePropagation();closeMenu();openDestinationEditor()},true);
+
+// Reuse the same destination content and authorized guest projection in the hero.
+function integrateDestinationHero(card){
+ const hero=document.querySelector('#app .planning-hero');if(!hero||!card)return;
+ const previous=card.parentElement;card.classList.add('planning-hero-destination');
+ // Dates and city already belong to the identity above; retain detailed logistics.
+ card.querySelector('.destination-dates')?.remove();
+ const media=document.createElement('div');media.className='planning-destination-media';
+ const mapBlock=document.createElement('div'),photoBlock=document.createElement('div');
+ for(const node of [...card.children]){if(node.matches('.destination-map,.destination-map-caption'))mapBlock.append(node);else if(node.matches('h3,.destination-gallery')||(node.matches('.destination-empty')&&node.textContent.includes('fotos')))photoBlock.append(node)}
+ if(mapBlock.children.length)media.append(mapBlock);if(photoBlock.children.length)media.append(photoBlock);card.append(media);
+ hero.append(card);hero.classList.add('has-destination');
+ if(previous?.classList.contains('guest-single-info')&&!previous.children.length)previous.remove();
+}
+function decorateAdminDestinationHero(){
+ if(juntoOnline.participantTripId)return;
+ const hero=document.querySelector('#app .planning-hero');if(!hero||hero.querySelector('.planning-hero-destination'))return;
+ const item=trip();if(!item)return;const details=item.destinationDetails||{};
+ const data={trip:item,destination_details:{...details,address:details.address||item.address||'',departure_time:item.departureTime||'',meeting_point:item.departureMeetingPoint||''}};
+ destinationVisiblePhotos=(details.photos||[]).map(destinationPhotoUrl).filter(Boolean).slice(0,6);
+ const card=document.createElement('section');card.className='destination-card';card.innerHTML=destinationCard(data);integrateDestinationHero(card);
+}
+const renderBeforeDestinationHero=render;
+render=function(...args){renderBeforeDestinationHero(...args);decorateAdminDestinationHero()};

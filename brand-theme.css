@@ -154,3 +154,18 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 @media(max-width:760px){.planning-hero{grid-template-columns:minmax(0,1fr);margin-bottom:16px}.planning-hero .visual-event-cover{height:170px;min-height:170px}.planning-hero .visual-event-body{padding:18px}.planning-hero-actions>.button{max-width:100%;white-space:normal}.planning-hero-actions{gap:8px}}
 
 .participant-portal>.planning-hero{margin-bottom:0}.guest-info-without-cover{display:block}.participant-portal-head.planning-hero{align-items:stretch}
+
+/* Logistics and gallery are part of the same planning header for both roles. */
+.planning-hero.has-destination{grid-template-columns:minmax(220px,.75fr) minmax(0,1.25fr)}
+.planning-hero .planning-hero-destination{grid-column:1/-1;border:0;border-top:1px solid var(--ds-line);border-radius:0;box-shadow:none;padding:22px 28px;background:var(--color-background);display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:12px 24px}
+.planning-hero-destination>.section-head,.planning-hero-destination>.destination-address,.planning-hero-destination>.destination-empty{grid-column:1/-1;margin:0}
+.planning-hero-destination>.destination-map{grid-column:1;grid-row:auto/span 3}
+.planning-hero-destination>.destination-map-caption{grid-column:1;grid-row:auto}
+.planning-hero-destination>h3{grid-column:2;grid-row: auto;margin:0}
+.planning-hero-destination>.destination-gallery{grid-column:2}
+.planning-hero-destination .destination-gallery img{height:100px}
+.planning-hero-destination .destination-map iframe{height:250px}
+.planning-hero-destination .destination-countdown{background:var(--accent-soft);color:var(--color-navy)}
+@media(max-width:760px){.planning-hero.has-destination{grid-template-columns:minmax(0,1fr)}.planning-hero .planning-hero-destination{display:flex;flex-direction:column;padding:18px;gap:12px}.planning-hero-destination .destination-map iframe{height:190px}.planning-hero-destination .destination-gallery img{height:75px}}
+
+.planning-destination-media{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px}.planning-destination-media>div{min-width:0}.planning-destination-media h3{margin:0 0 12px}@media(max-width:760px){.planning-destination-media{grid-template-columns:minmax(0,1fr);gap:16px}}
