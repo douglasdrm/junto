@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const {JSDOM,VirtualConsole}=require('jsdom'),root=path.resolve(__dirname,'..'),errors=[];
+let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<script src="([^"]+)"><\/script>/g,(m,src)=>src.startsWith('http')?'':`<script>${fs.readFileSync(path.join(root,src.split('?')[0]),'utf8').replaceAll('</script','<\\/script')}</script>`);
+const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!e.message.includes('Not implemented'))errors.push(e.message)});
+const dom=new JSDOM(html,{url:'https://junto-six-eta.vercel.app/',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){w.structuredClone=structuredClone;w.matchMedia=()=>({matches:false,addEventListener(){}});w.confirm=()=>true;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{}}});
+const w=dom.window,run=source=>{const s=w.document.createElement('script');s.textContent=source;w.document.body.append(s);s.remove()},tick=()=>new Promise(r=>setTimeout(r,35));
+(async()=>{await tick();run(`
+ juntoOnline.user={id:'owner'};juntoOnline.restoring=false;juntoOnline.restoredFor=null;activeOnlineLink=()=>null;window.dashboardLoads=0;refreshPlanningDirectory=async()=>{dashboardLoads++};
+ window.views=[{trip_id:'a',role:'organizer'},{trip_id:'b',role:'organizer'}];
+ juntoOnline.client={rpc:async()=>({data:window.views}),from:()=>({select:()=>({order:async()=>({data:[{trip_id:'a',payload:{}},{trip_id:'b',payload:{}}]})})})};
+ window.oldRender=render;render=()=>ensureVisualHeader();window.refresh=restoreOnlineTrips();`);await w.refresh;
+ assert(!w.document.querySelector('#modal-root .modal'),'Account restoration must not open the old selector');assert.equal(w.dashboardLoads,1);
+ run(`window.views=[{trip_id:'a',role:'participant'},{trip_id:'b',role:'participant'}];juntoOnline.restoredFor=null;window.refresh=restoreOnlineTrips()`);await w.refresh;assert.equal(w.dashboardLoads,2);assert(!w.document.querySelector('#modal-root .modal'));
+ run(`db.trips.push({id:'header-event',name:'Natal da família',eventType:'event'});db.active='header-event';db.simplePage='inicio';ensureVisualHeader()`);
+ assert.equal(w.document.querySelector('.visual-breadcrumb strong').textContent,'Natal da família');assert.equal(w.document.querySelector('.current-planning-mobile strong').textContent,'Natal da família');assert(!w.document.querySelector('.current-planning-mobile').hidden);
+ w.document.querySelector('.current-planning-mobile').click();await tick();assert.equal(w.document.querySelector('.current-planning-mobile').hidden,true);assert(!w.document.querySelector('#modal-root .modal'));
+ run(`juntoOnline.participantTripId='guest-event';document.querySelector('#app').innerHTML='<div class="participant-portal-head"><h1>Viagem compartilhada</h1></div>';ensureVisualHeader()`);assert.equal(w.document.querySelector('.visual-breadcrumb strong').textContent,'Viagem compartilhada');
+ run(`juntoOnline.user=null;ensureVisualHeader()`);assert(w.document.querySelector('.current-planning-mobile').hidden);assert(!w.document.querySelector('.visual-breadcrumb').textContent.includes('Viagem compartilhada'));
+ await tick();assert.deepEqual(errors,[]);dom.window.close();console.log('PASS no automatic planning popup, shared dashboard, current planning labels, switching and logout privacy');
+})().catch(e=>{console.error(e);dom.window.close();process.exitCode=1});
