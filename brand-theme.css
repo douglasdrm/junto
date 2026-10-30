@@ -140,3 +140,15 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 @media(forced-colors:active){.nav.active{border:2px solid Highlight}.mobile-account.is-online::after{background:Highlight}.button{border:1px solid ButtonText}}
+
+/* The planning identity is a single full-width header, not a repeated card. */
+.planning-hero{display:grid;grid-template-columns:minmax(220px,.7fr) minmax(0,1.3fr);margin-bottom:24px;width:100%}
+.planning-hero .visual-event-cover{height:100%;min-height:260px}
+.planning-hero .visual-event-cover>img{width:100%;height:100%;position:absolute;inset:0;object-fit:cover}
+.planning-hero .visual-cover-empty{height:100%}
+.planning-hero .visual-event-body{padding:28px;min-width:0}
+.planning-hero h1{font-size:var(--text-title);line-height:1.2;letter-spacing:-.045em;margin:12px 0;overflow-wrap:anywhere}
+.planning-hero-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.planning-hero-actions:empty{display:none}
+.visual-dashboard-grid.overview-shopping-only{grid-template-columns:minmax(0,1fr)}
+@media(max-width:760px){.planning-hero{grid-template-columns:minmax(0,1fr);margin-bottom:16px}.planning-hero .visual-event-cover{height:170px;min-height:170px}.planning-hero .visual-event-body{padding:18px}.planning-hero-actions>.button{max-width:100%;white-space:normal}.planning-hero-actions{gap:8px}}

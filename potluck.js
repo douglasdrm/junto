@@ -28,7 +28,7 @@ function potluckCard(item,data){
 }
 function positionPotluck(section,guest){
  const host=guest?document.querySelector('.participant-portal'):document.querySelector('#app');if(!host)return;
- const header=guest?host.querySelector('.participant-portal-head'):host.querySelector('.page-head');
+ const header=guest?host.querySelector('.participant-portal-head'):host.querySelector('.planning-hero,.page-head');
  if(header&&header.parentElement===host){if(header.nextElementSibling!==section)header.after(section)}else if(host.firstElementChild!==section)host.prepend(section);
 }
 async function decoratePotluck(force=false){
