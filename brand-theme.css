@@ -152,3 +152,5 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 .planning-hero-actions:empty{display:none}
 .visual-dashboard-grid.overview-shopping-only{grid-template-columns:minmax(0,1fr)}
 @media(max-width:760px){.planning-hero{grid-template-columns:minmax(0,1fr);margin-bottom:16px}.planning-hero .visual-event-cover{height:170px;min-height:170px}.planning-hero .visual-event-body{padding:18px}.planning-hero-actions>.button{max-width:100%;white-space:normal}.planning-hero-actions{gap:8px}}
+
+.participant-portal>.planning-hero{margin-bottom:0}.guest-info-without-cover{display:block}.participant-portal-head.planning-hero{align-items:stretch}
