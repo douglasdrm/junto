@@ -42,6 +42,10 @@ function integrateDestinationHero(card){
  const mapBlock=document.createElement('div'),photoBlock=document.createElement('div');
  for(const node of [...card.children]){if(node.matches('.destination-map,.destination-map-caption'))mapBlock.append(node);else if(node.matches('h3,.destination-gallery')||(node.matches('.destination-empty')&&node.textContent.includes('fotos')))photoBlock.append(node)}
  if(mapBlock.children.length)media.append(mapBlock);if(photoBlock.children.length)media.append(photoBlock);card.append(media);
+ const countdown=card.querySelector('.destination-countdown');if(countdown)hero.querySelector('.visual-event-body')?.prepend(countdown);
+ // Keep the photo strip adjacent to the cover, using the existing enlargement actions.
+ if(photoBlock.querySelector('.destination-gallery')){photoBlock.className='planning-hero-photos';hero.querySelector('.visual-event-cover')?.append(photoBlock);photoBlock.querySelector('h3')?.remove()}
+ else photoBlock.remove();
  hero.append(card);hero.classList.add('has-destination');
  if(previous?.classList.contains('guest-single-info')&&!previous.children.length)previous.remove();
 }
