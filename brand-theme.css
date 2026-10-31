@@ -200,3 +200,5 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 .photo-map-hero .visual-event-body h1,.photo-map-hero .visual-event-body h2,.photo-map-hero .visual-event-body>.help{ text-shadow:0 1px 5px #0009 }
 .photo-map-hero .destination-countdown{left:16px;right:auto}
 @media(max-width:760px){.sidebar{padding-bottom:max(16px,env(safe-area-inset-bottom))}}
+
+.summary-export{display:grid;gap:12px}.summary-export [data-summary-preview]{max-height:55vh;overflow:auto;border:1px solid var(--ds-line);border-radius:14px;background:var(--color-background)}.summary-export canvas{display:block;width:100%;height:auto}.summary-export .actions{display:flex;flex-wrap:wrap;gap:8px}.summary-export .check{font-size:13px}.summary-export .help{margin:0}
