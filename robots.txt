@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /app/
+Disallow: /dashboard/
+Disallow: /login/
+Disallow: /conta/
+
+Sitemap: https://junto-six-eta.vercel.app/sitemap.xml
