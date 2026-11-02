@@ -228,3 +228,22 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 .welcome .welcome-primary:focus-visible{outline-color:#222C4C;box-shadow:0 0 0 2px #fff}
 .welcome :is(button,summary){touch-action:manipulation}.welcome .welcome-login{min-height:44px}
 @media(prefers-reduced-motion:reduce){.welcome,.welcome *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Public presentation shortcut and compact, read-only guest finance. */
+.public-landing-link{display:flex;align-items:center;gap:8px;text-decoration:none}.public-landing-link>span[aria-hidden]{margin-left:auto}
+.public-landing-link:focus-visible{outline:3px solid var(--color-primary);outline-offset:2px}
+.welcome [data-welcome-demo][hidden]{display:none!important}
+.own-financial-report,.own-financial-report .table-wrap{min-width:0;max-width:100%}
+.own-financial-report .finance-table{min-width:0;width:100%;table-layout:fixed}
+.own-financial-report .finance-table :is(th,td){white-space:normal;overflow-wrap:anywhere;vertical-align:top}
+.own-financial-report .finance-table :is(th,td):first-child{position:static;width:88px;white-space:nowrap}
+.own-financial-report .finance-table :is(th,td):last-child{width:110px}
+@media(max-width:600px){
+ .own-financial-report .finance-table :is(th,td){padding:10px 7px;font-size:11px}
+ .own-financial-report .finance-table :is(th,td):first-child{width:78px;font-size:10px}
+ .own-financial-report .finance-table :is(th,td):last-child{width:90px}
+ .simple-table .payer-cell{min-width:0;width:112px;max-width:112px;display:flex;flex-wrap:wrap;gap:5px}
+ .simple-table .payer-name-button{max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left}
+ .simple-table :is(th,td):first-child{min-width:128px;width:128px;max-width:128px;white-space:normal;padding:8px}
+ .simple-table .drag-handle{display:none}
+}

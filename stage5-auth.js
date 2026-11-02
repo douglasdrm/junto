@@ -4,6 +4,7 @@ const initialAuthUrl=new URL(location.href),initialAuthHash=new URLSearchParams(
 const juntoOnline={client:null,user:null,profile:null,configured:false,invitesReady:false,syncTimer:null,syncing:false,syncQueued:false,restoring:false,restoredFor:null,participantTripId:null,recoveryPending:initialAuthUrl.searchParams.get('auth_action')==='recovery'||initialAuthUrl.searchParams.get('type')==='recovery'||initialAuthHash.get('type')==='recovery',guestUpgradePending:initialAuthUrl.searchParams.get('auth_action')==='guest-upgrade'};
 const saveLocal=save;
 const welcomeEl=document.querySelector('#welcome');
+const publicLandingPreview=new URL(location.href).searchParams.get('apresentacao')==='1';
 const tripScopedKeys=['people','payments','houses','expenses','families','fundYields','fundSnapshots','shoppingItems','consumptionGroups','roomPlans'];
 const groupScopedKeys=['members','groupFamilies','relationships','peopleMapLayouts','roomPreferences'];
 
@@ -40,8 +41,8 @@ function updateAccountButton(){
   });updateOnlineNote();
 }
 function onlinePlanTerms(item=trip()){const eventPlan=item?.eventType==='event';return {kind:eventPlan?'evento':'viagem',title:eventPlan?'Evento':'Viagem',article:eventPlan?'o':'a'}}
-function showWelcome(){if(!welcomeEl||juntoOnline.user||sessionStorage.getItem('junto_welcome_skipped'))return;welcomeEl.hidden=false;document.querySelector('.layout')?.setAttribute('inert','');document.body.classList.add('welcome-open');requestAnimationFrame(()=>welcomeEl.classList.add('is-visible'))}
-function hideWelcome(remember=false){if(!welcomeEl)return;if(remember)sessionStorage.setItem('junto_welcome_skipped','1');welcomeEl.classList.remove('is-visible');document.querySelector('.layout')?.removeAttribute('inert');document.body.classList.remove('welcome-open');setTimeout(()=>{welcomeEl.hidden=true},420)}
+function showWelcome(){if(!welcomeEl||(!publicLandingPreview&&(juntoOnline.user||sessionStorage.getItem('junto_welcome_skipped'))))return;if(typeof configurePublicLandingPreview==='function')configurePublicLandingPreview();welcomeEl.hidden=false;document.querySelector('.layout')?.setAttribute('inert','');document.body.classList.add('welcome-open');requestAnimationFrame(()=>welcomeEl.classList.add('is-visible'))}
+function hideWelcome(remember=false){if(!welcomeEl)return;if(publicLandingPreview&&juntoOnline.user){showWelcome();return}if(remember)sessionStorage.setItem('junto_welcome_skipped','1');welcomeEl.classList.remove('is-visible');document.querySelector('.layout')?.removeAttribute('inert');document.body.classList.remove('welcome-open');setTimeout(()=>{welcomeEl.hidden=true},420)}
 function openDemoWorkspace(kind='trip'){let demoState=migrate(clone(kind==='event'?DEMO_EVENT:DEMO));for(const migration of [globalThis.migrateV3,globalThis.migrateV4,globalThis.migrateV5,globalThis.migrateV7,globalThis.migrateV8])if(typeof migration==='function')demoState=migration(demoState);db=demoState;saveLocal();render();hideWelcome(true);document.querySelector('#app')?.focus({preventScroll:true})}
 function tripBundleFor(localTripId,state=db){
   const current=(state.trips||[]).find(item=>item.id===localTripId);if(!current)return null;const groupId=current.groupId||state.activeGroupId,group=(state.groups||[]).find(item=>item.id===groupId)||{id:groupId,name:'Grupo do planejamento',description:''},payload={schemaVersion:1,exportedAt:new Date().toISOString(),trip:cloneOnline(current),group:cloneOnline(group)};

@@ -27,3 +27,13 @@ window.addEventListener('click',async event=>{if(!event.target.closest('[data-on
 const originalContributionSetup=contributionSetup;
 contributionSetup=function(){const settings=trip()?.paymentSettings||{};return originalContributionSetup()+`<details class="card optional-receiving"><summary>Pix e vencimento <span>opcional</span></summary><form id="receiving-settings"><div class="form-grid">${field('receivingPix','Chave Pix do organizador','text',settings.pixKey||'','maxlength="254"')}${select('receivingDue','Dia de vencimento',[['','Definir depois'],...Array.from({length:31},(_,i)=>[String(i+1),String(i+1)])],String(settings.dueDay||''))}</div><p class="help">Dados para sua organização. Não há cobrança nem confirmação automática de pagamentos.</p><button class="button secondary">Salvar dados</button></form></details>`};
 window.addEventListener('submit',event=>{if(event.target.id!=='receiving-settings')return;event.preventDefault();event.stopImmediatePropagation();const data=new FormData(event.target);trip().paymentSettings={pixKey:String(data.get('receivingPix')||'').trim(),dueDay:Number(data.get('receivingDue'))||null};if(trip().contributionPlan)trip().contributionPlan.dueDay=trip().paymentSettings.dueDay;commit('Dados de recebimento salvos.')},true);
+
+/* A public presentation can be inspected without replacing an authenticated workspace. */
+function installPublicLandingLink(){const nav=document.querySelector('#nav');if(nav&&!nav.querySelector('[data-public-landing]'))nav.insertAdjacentHTML('beforeend','<a class="nav public-landing-link" href="/?apresentacao=1" target="_blank" rel="noopener" data-public-landing>Conheça o Juntô <span aria-hidden="true">↗</span><span class="sr-only"> (abre em outra aba)</span></a>')}
+function configurePublicLandingPreview(){if(!publicLandingPreview||!juntoOnline.user)return;document.querySelectorAll('[data-welcome-auth]').forEach(button=>{button.removeAttribute('data-welcome-auth');button.setAttribute('data-public-landing-return','');button.textContent='Voltar ao sistema'});document.querySelectorAll('[data-welcome-demo]').forEach(button=>button.hidden=true)}
+const renderBeforePublicLanding=render;
+render=function(...args){const result=renderBeforePublicLanding(...args);installPublicLandingLink();return result};
+const participantNavigationBeforePublicLanding=participantNavigation;
+participantNavigation=function(...args){const result=participantNavigationBeforePublicLanding(...args);installPublicLandingLink();return result};
+window.addEventListener('click',event=>{if(!event.target.closest('[data-public-landing-return]'))return;event.preventDefault();event.stopImmediatePropagation();location.assign('/')},true);
+installPublicLandingLink();if(publicLandingPreview)showWelcome();
