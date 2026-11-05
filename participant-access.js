@@ -2,19 +2,52 @@
 
 /* Access to an existing record, separate from joining a new event. */
 participantInviteModal=function(selectedPersonId=''){
- const options=people().map(person=>`<option value="${esc(person.id)}" ${person.id===selectedPersonId?'selected':''}>${esc(person.name)}</option>`).join('');
+ const options=people().map(person=>`<option value="${esc(person.id)}" ${person.id===selectedPersonId?'selected':''}>${esc(participantLinkOptionLabel(person))}</option>`).join('');
  if(!options)return toast('Cadastre participantes antes de vincular o acesso.','error');
  modal('Vincular acesso','Escolha quem já está cadastrado. Não é necessário informar e-mail nem telefone.',`<form id="existing-access-link"><label class="field"><span>Participante cadastrado</span><select name="participantId" id="inviteParticipant" required><option value="">Selecione</option>${options}</select></label><p class="help">A pessoa entra ou cria a própria conta pelo link. Você confere a solicitação em Pessoas → Gerenciar acessos antes de liberar o acesso.</p><div class="actions"><button class="button primary" type="submit">Gerar link para essa pessoa</button><button class="button secondary" type="button" data-link-self-selected>Sou eu</button></div><p class="help">“Sou eu” usa sua conta atual e mantém seu acesso de administrador.</p></form>`);
 };
 
+const participantLinkStates=new Map(),participantLinkLoads=new Map();
+function participantLinkContext(){return juntoOnline.user&&!juntoOnline.user.is_anonymous&&!juntoOnline.participantTripId&&activeOnlineLink()?`${juntoOnline.user.id}:${activeOnlineLink().tripId}`:''}
+function paintParticipantLinkStatuses(root=document,failed=false){
+ const context=participantLinkContext();if(!context)return;
+ const rows=participantLinkStates.get(context)?.items,hasSelf=rows?.some(item=>item.is_self&&item.status==='linked')||(!rows&&people().some(person=>person.profileId===juntoOnline.user.id));
+ root.querySelectorAll('[data-access-person-id]').forEach(row=>{
+  const personId=row.dataset.accessPersonId,person=people().find(person=>person.id===personId),entry=rows?.find(item=>item.participant_id===personId),localSelf=!rows&&person?.profileId===juntoOnline.user.id;
+  const status=entry?.status||(rows?'unlinked':localSelf?'linked':failed?'unknown':'loading'),self=(entry?.is_self||localSelf)&&status==='linked';
+  const names={linked:self?'Você · conta vinculada':'Conta vinculada',requested:'Aguardando aprovação',invited:'Convite enviado',expired:'Convite expirado',revoked:'Acesso revogado',unlinked:'Sem vínculo',loading:'Consultando vínculo…',unknown:'Vínculo não conferido'};
+  const badge=row.querySelector('[data-person-link-badge]');badge.textContent=names[status];badge.dataset.linkStatus=status;badge.classList.toggle('is-self',Boolean(self));
+  const button=row.querySelector('[data-person-link-action]'),manage=['linked','requested','revoked'].includes(status);
+  button.removeAttribute('data-link-existing-person');button.removeAttribute('data-manage-participant-access');
+  button.setAttribute(manage?'data-manage-participant-access':'data-link-existing-person',manage?'':personId);
+  button.textContent=manage?'Gerenciar acesso':status==='invited'?'Reenviar convite':status==='expired'?'Gerar novo convite':'Vincular acesso';button.disabled=status==='loading';
+  const selfButton=row.querySelector('[data-link-self-person]');selfButton.hidden=Boolean(hasSelf||manage);selfButton.disabled=status==='loading';
+ });
+}
+function participantLinkOptionLabel(person){const item=participantLinkStates.get(participantLinkContext())?.items.find(item=>item.participant_id===person.id),self=item?.is_self&&item.status==='linked';const label=self?'Você':({linked:'Conta vinculada',requested:'Aguardando aprovação',invited:'Convite enviado',expired:'Convite expirado',revoked:'Acesso revogado'})[item?.status];return person.name+(label?' · '+label:'')}
+async function refreshParticipantLinkStatuses(force=false){
+ const context=participantLinkContext();if(!context)return;
+ const cached=participantLinkStates.get(context);if(!force&&cached&&Date.now()-cached.at<20000){paintParticipantLinkStatuses();return}
+ if(participantLinkLoads.has(context)){const pending=participantLinkLoads.get(context);if(!force)return pending;await pending;if(participantLinkContext()!==context)return;return refreshParticipantLinkStatuses(true)}
+ const tripId=activeOnlineLink().tripId,client=juntoOnline.client;
+ const task=(async()=>{try{const {data,error}=await client.rpc('get_participant_link_status',{target_trip:tripId});if(error)throw error;if(participantLinkContext()!==context)return;participantLinkStates.set(context,{items:data||[],at:Date.now()});paintParticipantLinkStatuses()}catch(error){if(participantLinkContext()===context){participantLinkStates.delete(context);paintParticipantLinkStatuses(document,true)}}finally{participantLinkLoads.delete(context)}})();
+ participantLinkLoads.set(context,task);return task;
+}
 const peopleBeforeAccessLinks=simplePeople;
 simplePeople=function(){
  const html=peopleBeforeAccessLinks();
- if(typeof juntoOnline==='undefined'||!juntoOnline.user||juntoOnline.user.is_anonymous||!activeOnlineLink())return html;
+ if(!participantLinkContext())return html;
  const template=document.createElement('template');template.innerHTML=html;
- template.content.querySelectorAll('[data-link-existing-person]').forEach(button=>button.insertAdjacentHTML('afterend',`<button type="button" class="button ghost small" data-link-self-person="${esc(button.dataset.linkExistingPerson)}">Sou eu</button>`));
- return template.innerHTML;
+ template.content.querySelectorAll('[data-link-existing-person]').forEach(button=>{
+  const id=button.dataset.linkExistingPerson,row=button.closest('.record');if(!row)return;
+  row.dataset.accessPersonId=id;button.setAttribute('data-person-link-action','');
+  row.querySelector('strong')?.insertAdjacentHTML('afterend','<span class="participant-link-badge" data-person-link-badge role="status"></span>');
+  button.insertAdjacentHTML('afterend',`<button type="button" class="button ghost small" data-link-self-person="${esc(id)}">Sou eu</button>`);
+ });
+ paintParticipantLinkStatuses(template.content);return template.innerHTML;
 };
+const renderBeforeParticipantLinkBadges=render;
+render=function(...args){const result=renderBeforeParticipantLinkBadges(...args);if(db.simplePage==='pessoas'&&participantLinkContext())void refreshParticipantLinkStatuses();return result};
 
 async function createExistingAccessLink(personId,button){
  const link=activeOnlineLink(),person=people().find(item=>item.id===personId);if(!link||!person)return toast('Selecione uma pessoa cadastrada.','error');
@@ -29,7 +62,7 @@ async function createExistingAccessLink(personId,button){
   if(activeOnlineLink()?.tripId!==link.tripId)return;
   const url=new URL('/convite',location.origin);url.searchParams.set('invite',`access:${data}`);
   const text=`${person.name}, acesse seu cadastro em “${trip().name}” no Juntô. Entre ou crie sua conta e solicite o vínculo: ${url}`;
-  const alreadyLinked=preview.data.status==='approved';
+  const alreadyLinked=preview.data.status==='approved';await refreshParticipantLinkStatuses(true);
   modal(alreadyLinked?'Reenviar acesso existente':'Vínculo individual confirmado',`Envie este link somente para ${person.name}.`, `<div class="stack"><label class="field"><span>Link individual</span><input id="existingParticipantAccessUrl" value="${esc(url.toString())}" readonly></label><p class="help">${alreadyLinked?'Esta pessoa já tem acesso. O link permite entrar com a conta vinculada, sem criar outro participante.':'Válido por 7 dias. Gerar outro link cancela o anterior.'} O cadastro e os pagamentos existentes serão preservados.</p><div class="actions"><button class="button primary" data-copy-existing-access>Copiar link</button><a class="button secondary" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Compartilhar no WhatsApp</a></div></div>`);
  }catch(error){accessLinkFailure(error)}finally{if(button?.isConnected)button.disabled=false}
 }
@@ -58,6 +91,7 @@ manageParticipantAccess=async function(){
  const body=document.querySelector('#modal-root .modal');if(!body)return;
  if(error){body.insertAdjacentHTML('beforeend','<p class="notice warn">Não foi possível consultar as solicitações de vínculo. Feche e tente novamente.</p>');return}
  const entries=data||[];
+ void refreshParticipantLinkStatuses(true);
  body.insertAdjacentHTML('beforeend',`<section class="access-link-requests"><h3>Links e solicitações de vínculo</h3>${entries.length?entries.map(item=>`<article class="record"><div><strong>${esc(item.participant_name)}</strong><div class="record-meta">${item.expired?'Link expirado':item.status==='requested'?`Solicitado por ${esc(item.requester_name||'Usuário')} · ${esc(item.requester_email||'')}`:'Aguardando a pessoa abrir e solicitar'}</div></div><div class="record-actions">${!item.expired&&item.status==='requested'?`<button class="button primary small" data-review-access="${esc(item.id)}" data-approve-access="true">Aprovar vínculo</button>`:''}<button class="button danger small" data-review-access="${esc(item.id)}" data-approve-access="false">${item.status==='requested'?'Recusar':'Cancelar link'}</button></div></article>`).join(''):'<p class="help">Nenhuma solicitação pendente.</p>'}</section>`);
 };
 
@@ -77,7 +111,7 @@ window.addEventListener('click',async event=>{
    const personId=target.dataset.confirmSelfLink,link=activeOnlineLink();if(!link||!await syncTripSnapshotById(db.active))return;
    const {error}=await juntoOnline.client.rpc('link_my_participant',{target_trip:link.tripId,local_participant_id:personId});if(error)throw error;
    const person=people().find(item=>item.id===personId);if(person){person.profileId=juntoOnline.user.id;const member=memberForParticipant(person);if(member)member.profileId=juntoOnline.user.id;saveLocal();await syncTripSnapshotById(db.active)}
-   closeModal();toast('Seu cadastro está vinculado à sua conta. Você continua administrador.');render();return;
+   participantLinkStates.delete(participantLinkContext());await refreshParticipantLinkStatuses(true);closeModal();toast('Seu cadastro está vinculado à sua conta. Você continua administrador.');render();return;
   }
   if(target.matches('[data-request-existing-access]')){
    const token=pendingInvite();if(!token.startsWith('access:'))return;
@@ -107,3 +141,5 @@ window.addEventListener('click',async event=>{
  if(!value||!new URL(value).searchParams.get('invite')?.startsWith('access:'))return toast('O link individual ainda não está pronto. Gere novamente.','error');
  try{await navigator.clipboard.writeText(value);toast('Link individual copiado.')}catch{input.select();toast('Selecione e copie o link individual exibido.','error')}
 },true);
+
+window.addEventListener('focus',()=>{if(db.simplePage==='pessoas'&&participantLinkContext())void refreshParticipantLinkStatuses(true)});

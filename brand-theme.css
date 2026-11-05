@@ -247,3 +247,10 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
  .simple-table :is(th,td):first-child{min-width:128px;width:128px;max-width:128px;white-space:normal;padding:8px}
  .simple-table .drag-handle{display:none}
 }
+
+.participant-link-badge{display:inline-flex;align-items:center;max-width:100%;margin:5px 0 5px 10px;padding:4px 9px;border:1px solid #dce3ef;border-radius:999px;background:#f3f5fa;color:#596780;font-size:10px;font-weight:700;line-height:1.4;vertical-align:middle;white-space:normal}
+.participant-link-badge[data-link-status="linked"]{background:#e5f6ee;color:#176347;border-color:#b9dfcb}
+.participant-link-badge.is-self{background:#eaf0ff;color:#244bb8;border-color:#cad8ff}
+.participant-link-badge:is([data-link-status="requested"],[data-link-status="invited"]){background:#fff5dc;color:#80551d;border-color:#efdfaf}
+.participant-link-badge[data-link-status="revoked"]{background:#fff0f2;color:#96344b;border-color:#eed0d8}
+@media(max-width:600px){.participant-link-badge{margin-left:0;margin-right:8px}}
