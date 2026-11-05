@@ -36,8 +36,15 @@ async function refreshOrganizerResponses(force=false){
  const tripId=activeOnlineLink().tripId,account=juntoOnline.user.id;
  const promise=(async()=>{try{const {data,error}=await juntoOnline.client.rpc('list_trip_invitation_responses',{target_trip:tripId});if(error)throw error;if(organizerResponseContext()!==context||juntoOnline.user?.id!==account)return;organizerResponses.set(context,{at:Date.now(),items:Array.isArray(data)?data:[],error:false})}catch(error){if(organizerResponseContext()===context)organizerResponses.set(context,{at:Date.now(),items:[],error:['PGRST202','42883'].includes(error?.code)?'schema':'network'})}finally{organizerResponseLoads.delete(context);if(organizerResponseContext()===context)paintOrganizerResponses()}})();organizerResponseLoads.set(context,promise);return promise;
 }
+function decorateSectionHeading(){
+ const header=document.querySelector('#app > .page-head');if(!header)return;
+ header.classList.add('section-page-header');
+ const slogan=header.querySelector('.eyebrow');if(slogan&&slogan.textContent.trim().toUpperCase()==='PLANEJE MELHOR. VIVA JUNTO.')slogan.remove();
+ const title=header.querySelector('h1');if(title&&!title.querySelector('.section-title-icon')){const icons={inicio:'home',viagens:'calendar',grupos:'users',contribuicoes:'wallet',financeiro:'receipt',pessoas:'users',mais:'more'};const icon=document.createElement('span');icon.className='section-title-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=juntoIcon(icons[db.simplePage]||'calendar');title.prepend(icon)}
+ const settings=header.querySelector('[data-trip-settings]');if(settings){const label=settings.getAttribute('aria-label')||settings.textContent.trim();settings.classList.add('section-settings-action');settings.title=label;settings.setAttribute('aria-label',label);settings.innerHTML='<svg class="ds-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 3-.6 2.2-2 .9-2.1-.6-2 3.5 1.5 1.6v2.3L2.3 14.5l2 3.5 2.1-.6 2 .9L9 21h4l.6-2.7 2-.9 2.1.6 2-3.5-1.5-1.6v-2.3l1.5-1.6-2-3.5-2.1.6-2-.9L13 3Z"/><circle cx="11" cy="12" r="3"/></svg>';header.append(settings)}
+}
 const renderBeforePeopleExperience=render;
-render=function(...args){renderBeforePeopleExperience(...args);if(db.simplePage==='pessoas'&&!juntoOnline.participantTripId){paintOrganizerResponses();if(document.querySelector('[data-event-invitation-responses]'))void refreshOrganizerResponses()}};
+render=function(...args){renderBeforePeopleExperience(...args);decorateSectionHeading();if(db.simplePage==='pessoas'&&!juntoOnline.participantTripId){paintOrganizerResponses();if(document.querySelector('[data-event-invitation-responses]'))void refreshOrganizerResponses()}};
 const notificationBeforeResponses=notificationItemMarkup;
 notificationItemMarkup=function(item){if(item.type!=='invitation_maybe')return notificationBeforeResponses(item);return `<article class="record notification-record"><div><strong>${esc(item.requester_name||'Uma pessoa')} respondeu “Ainda não sei”</strong><div class="record-meta">${esc(item.trip_name)}</div><p class="help">A presença ainda não foi confirmada.</p></div><button type="button" class="button secondary small" data-open-response-trip="${esc(item.trip_id)}">Ver respostas</button></article>`};
 const notificationPanelBeforeResponses=notificationPanelMarkup;

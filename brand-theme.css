@@ -300,3 +300,26 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 /* Authentication feedback stays above overlays and inside the active form. */
 #toasts{z-index:10000}
 [data-auth-feedback]{margin:0 0 14px;overflow-wrap:anywhere;outline-offset:3px}
+
+/* Section heading and participant controls follow the compact two-column reference. */
+.visual-breadcrumb.has-planning>strong{font-size:20px;font-weight:800;line-height:1.25}
+.current-planning-mobile>span:first-child{display:grid;gap:3px;flex:1;min-width:0}
+.current-planning-mobile strong{font-size:19px;font-weight:800;line-height:1.25;white-space:normal;overflow-wrap:break-word}
+.current-planning-mobile small{font-size:10px;line-height:1.3}.current-planning-mobile .current-planning-switch{font-size:12px;flex-shrink:0}
+.section-page-header{position:relative;padding-right:58px;min-height:46px}
+.section-page-header h1{display:flex;align-items:center;gap:12px;line-height:1.2;letter-spacing:-.035em}
+.section-title-icon{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;min-width:42px;border-radius:13px;background:#e8eeff;color:#315de7}
+.section-title-icon .ds-icon{width:23px;height:23px;flex-basis:23px}
+.section-page-header>.section-settings-action{position:absolute;top:0;right:0;width:42px;height:42px;min-height:42px;padding:10px!important;display:inline-flex;align-items:center;justify-content:center;border-radius:13px;background:#edf2ff;color:#315de7}
+.section-settings-action .ds-icon{width:21px;height:21px;flex-basis:21px}
+.record.participant-person-row{grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:16px}
+.participant-person-row>.record-actions{display:grid;grid-template-columns:40px 40px;justify-content:end;align-items:center;gap:7px;width:max-content;max-width:165px}
+.participant-person-row .record-actions>[data-person-link-action],.participant-person-row .record-actions>[data-link-existing-person],.participant-person-row .record-actions>[data-manage-participant-access],.participant-person-row .record-actions>[data-link-self-person]{grid-column:1/-1;justify-self:end;width:auto;max-width:165px;order:0}
+.participant-person-row .record-actions>[data-link-self-person]{order:1}
+.participant-person-row .record-actions>[data-remove-person-trip]{grid-column:1;order:2;justify-self:end}
+.participant-person-row .record-actions>[data-edit-person-v3]{grid-column:2;order:3;justify-self:end}
+@media(max-width:900px){.record.participant-person-row{grid-template-columns:minmax(0,1fr) minmax(112px,max-content);gap:12px}.participant-person-row>.record-actions{width:auto;max-width:148px;justify-self:end}.participant-person-row .record-actions>.button:not(.person-icon-action){max-width:148px;font-size:11px;line-height:1.35;padding:9px 11px}.participant-person-row .visual-person-identity{grid-template-columns:36px minmax(0,1fr);column-gap:9px}.participant-person-row .visual-avatar{width:34px;height:34px}.participant-person-row .participant-link-badge{font-size:9px;padding:4px 7px}.participant-person-row .record-meta{line-height:1.6}}
+@media(max-width:600px){.current-planning-mobile:not([hidden]){padding:12px 18px}.current-planning-mobile strong{font-size:19px}.section-page-header h1{font-size:27px;gap:10px}.section-title-icon{width:38px;height:38px;min-width:38px;border-radius:12px}.record.participant-person-row{grid-template-columns:minmax(0,1fr) 120px;gap:10px}.participant-person-row>.record-actions{max-width:120px}.participant-person-row .record-actions>.button:not(.person-icon-action){max-width:120px}.participant-person-row .record-meta{font-size:11px}}
+@media(max-width:360px){.record.participant-person-row{grid-template-columns:minmax(0,1fr) 112px}.participant-person-row>.record-actions,.participant-person-row .record-actions>.button:not(.person-icon-action){max-width:112px}.participant-person-row .visual-person-identity{grid-template-columns:30px minmax(0,1fr);column-gap:7px}.participant-person-row .visual-avatar{width:28px;height:28px}}
+.participant-person-row .record-actions>[data-person-link-action],.participant-person-row .record-actions>[data-link-existing-person],.participant-person-row .record-actions>[data-manage-participant-access],.participant-person-row .record-actions>[data-link-self-person]{width:max-content}
+@media(max-width:360px){.participant-person-row .record-actions>.button:not(.person-icon-action){font-size:10px;padding:9px 10px}}
