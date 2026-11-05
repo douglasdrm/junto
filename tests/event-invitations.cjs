@@ -7,10 +7,11 @@ const w=dom.window,run=source=>w.eval(source),tick=()=>new Promise(r=>setTimeout
 (async()=>{await tick();run(`
 window.calls=[];window.participantOpened=null;window.answers=[];window.token='a'.repeat(64);
 juntoOnline.user=null;localStorage.setItem('junto_pending_join',window.token);
-juntoOnline.client={rpc:async(name,args)=>{window.calls.push({name,args});return {data:name==='preview_event_invitation'?{status:'available',name:'Natal de teste',kind:'Evento',date:'2026-12-24',region:'Rio',can_respond:true}:name==='respond_event_invitation'?{trip_id:'remote',response:args.answer==='remember'?'pending':args.answer}:[]}}};
+juntoOnline.client={rpc:async(name,args)=>{window.calls.push({name,args});return {data:name==='preview_event_invitation'?{status:'available',name:'Natal de teste',kind:'Evento',date:'2026-12-24',region:'Rio',participant_count:2,participant_initials:['D','R'],cover_image:'https://example.com/cover.jpg',can_respond:true}:name==='respond_event_invitation'?{trip_id:'remote',response:args.answer==='remember'?'pending':args.answer}:[]}}};
 loadOnlineProfile=async()=>{};showParticipantTrip=async id=>{window.participantOpened=id};openPlanningDirectory=()=>{window.directoryOpened=true};
 window.testPromise=showGeneralInviteWelcome();`);await w.testPromise;
-assert(w.document.querySelector('.modal h2').textContent.includes('Natal de teste'));
+assert(w.document.querySelector('.invitation-event-title h3').textContent.includes('Natal de teste'));
+assert(w.document.querySelector('.invitation-event-hero img'));assert(w.document.querySelector('.invitation-people').textContent.includes('2 participantes confirmados'));
 w.document.querySelector('[data-preview-general-invitation]').click();assert(w.document.querySelector('[data-event-invitation-answer="accepted"]'));
 assert(!w.calls.some(c=>c.name==='respond_event_invitation'),'Preview must not create membership or response for a guest');
 w.document.querySelector('[data-event-invitation-answer="maybe"]').click();assert(w.document.querySelector('#online-login'),'Guest response must require login');

@@ -27,3 +27,13 @@ Layout de pessoas conferido em 360, 390, 768 e 1280 px e texto ampliado. Ainda r
 ## Ativação
 
 Publicação autorizada novamente em 05/11/2026. A migração de compatibilidade preservou o cliente anterior durante a preparação. Após publicar o cliente permanente, aplicar `activate_registered_join_after_client_release` para rejeitar contas anônimas também no endpoint legado. Nenhum participante ou pagamento é alterado por essa ativação.
+
+## Card de convite e retirada anterior
+
+A prévia agora apresenta capa com título, data em pt-BR, horário, região e iniciais/contagem dos participantes confirmados. Nomes completos, contatos e valores continuam privados. Metadados de leitura foram aplicados e conferidos com uma transação revertida.
+
+Diagnosticado: retiradas anteriores deixam `trip_access_revocations.reason = participant_removed`; por isso outra pessoa pode aceitar o mesmo convite enquanto a conta retirada é bloqueada.
+
+**Pendente de confirmação no Supabase:** `20261105173844_reinvitation_after_removal_and_preview_card.sql`. A ferramenta retornou confirmação expirada duas vezes; essa migração não foi aplicada. Ela permite reentrada somente quando o organizador gerou um link após a retirada, preserva o participante existente, limpa o estado de remoção na confirmação e mantém `organizer_revoked` bloqueado. A mudança deve passar pelo teste de retirada → novo link → mesma conta antes de ser considerada concluída.
+
+Enquanto isso, o site mantém a proteção existente e mostra uma orientação compreensível em vez do erro técnico de acesso revogado.
