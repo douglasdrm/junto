@@ -43,7 +43,7 @@ function originFor(req){
  // Use the request host, validated by Vercel routing; never trust forwarded-host.
  const configured=process.env.PUBLIC_SITE_URL;
  if(configured){const u=new URL(configured);if(u.protocol==='https:')return u.origin;}
- const host=String(req.headers?.host||process.env.VERCEL_PROJECT_PRODUCTION_URL||'junto-six-eta.vercel.app');
+ const host=String(req.headers?.host||process.env.VERCEL_PROJECT_PRODUCTION_URL||'junto.unodev.com.br');
  if(!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d{1,5})?$/i.test(host))throw Error('Invalid host');
  return 'https://'+host;
 }
