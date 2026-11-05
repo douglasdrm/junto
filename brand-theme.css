@@ -323,3 +323,16 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 @media(max-width:360px){.record.participant-person-row{grid-template-columns:minmax(0,1fr) 112px}.participant-person-row>.record-actions,.participant-person-row .record-actions>.button:not(.person-icon-action){max-width:112px}.participant-person-row .visual-person-identity{grid-template-columns:30px minmax(0,1fr);column-gap:7px}.participant-person-row .visual-avatar{width:28px;height:28px}}
 .participant-person-row .record-actions>[data-person-link-action],.participant-person-row .record-actions>[data-link-existing-person],.participant-person-row .record-actions>[data-manage-participant-access],.participant-person-row .record-actions>[data-link-self-person]{width:max-content}
 @media(max-width:360px){.participant-person-row .record-actions>.button:not(.person-icon-action){font-size:10px;padding:9px 10px}}
+
+/* Headings share the existing icon set; outside members keep their names readable. */
+.section-heading-with-icon{display:flex;align-items:center;gap:9px;min-width:0}
+.content-section-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;min-width:30px;border-radius:10px;background:#edf2ff;color:#315de7;pointer-events:none}
+.content-section-icon .ds-icon{width:18px;height:18px;flex-basis:18px}
+.record.outside-person-row{display:grid;grid-template-columns:minmax(180px,1fr) auto;align-items:center;gap:16px}
+.outside-person-identity{min-width:0}.outside-person-identity>strong{display:block;word-break:normal;overflow-wrap:break-word}.outside-person-identity .record-meta{white-space:normal;word-break:normal;overflow-wrap:break-word;line-height:1.6}
+.outside-person-row>.record-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}
+.outside-person-row .outside-person-edit{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;min-width:42px;padding:10px!important;border-radius:12px}
+.outside-person-row [data-add-person-trip]{max-width:100%;min-height:42px;white-space:normal}
+@media(max-width:900px){.record.outside-person-row{grid-template-columns:minmax(0,1fr);align-items:start;gap:10px}.outside-person-row>.record-actions{justify-self:end;width:100%;justify-content:flex-end}.outside-person-row [data-add-person-trip]{max-width:calc(100% - 52px);font-size:12px;padding:10px 14px}.content-section-icon{width:28px;height:28px;min-width:28px}}
+
+.compact-installments .button.installment-paid{background:#e7f5e9;border-color:#badfc3;color:#23613d}.simple-table .payment-cell.current.paid .month-payment{color:var(--positive,#23613d)}
