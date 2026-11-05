@@ -254,3 +254,21 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 .participant-link-badge:is([data-link-status="requested"],[data-link-status="invited"]){background:#fff5dc;color:#80551d;border-color:#efdfaf}
 .participant-link-badge[data-link-status="revoked"]{background:#fff0f2;color:#96344b;border-color:#eed0d8}
 @media(max-width:600px){.participant-link-badge{margin-left:0;margin-right:8px}}
+
+/* Participant identity stays readable even with narrow screens or larger text. */
+.record.participant-person-row{display:grid;grid-template-columns:minmax(180px,1fr) minmax(0,auto);gap:16px;align-items:center}
+.participant-person-row .visual-person-identity{min-width:0;grid-template-columns:40px minmax(0,1fr)}
+.participant-person-row .visual-person-identity>[data-visual-person]{grid-row:1 / span 4;align-self:start}
+.participant-person-row .visual-person-identity>:not([data-visual-person]){grid-column:2;min-width:0;overflow-wrap:break-word;word-break:normal}
+.participant-person-row .participant-link-badge{justify-self:start;margin:5px 0}
+.participant-person-row>.record-actions{min-width:0;max-width:100%;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.participant-person-row .record-actions>button{max-width:100%;white-space:normal}
+@media(max-width:900px){.record.participant-person-row{grid-template-columns:minmax(0,1fr);gap:12px}.participant-person-row>.record-actions{justify-content:flex-start;width:100%}}
+.invitation-preview-cover{display:block;width:100%;height:190px;object-fit:cover;border-radius:16px}
+.invitation-preview-info{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.invitation-preview-info>span{background:#f0f3ff;border-radius:9px;padding:8px 12px}
+.invitation-response-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.invitation-response-actions button{min-width:0;white-space:normal}
+.saved-invitation{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:18px 0;border-top:1px solid #e3e8f2}
+.saved-invitation h3{margin:0 0 6px}.saved-invitation p{margin:0}
+@media(max-width:400px){.invitation-response-actions{grid-template-columns:1fr}}
