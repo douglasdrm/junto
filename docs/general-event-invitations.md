@@ -34,6 +34,10 @@ A prévia agora apresenta capa com título, data em pt-BR, horário, região e i
 
 Diagnosticado: retiradas anteriores deixam `trip_access_revocations.reason = participant_removed`; por isso outra pessoa pode aceitar o mesmo convite enquanto a conta retirada é bloqueada.
 
-**Pendente de confirmação no Supabase:** `20261105173844_reinvitation_after_removal_and_preview_card.sql`. A ferramenta retornou confirmação expirada duas vezes; essa migração não foi aplicada. Ela permite reentrada somente quando o organizador gerou um link após a retirada, preserva o participante existente, limpa o estado de remoção na confirmação e mantém `organizer_revoked` bloqueado. A mudança deve passar pelo teste de retirada → novo link → mesma conta antes de ser considerada concluída.
+**Aplicada após autorização:** `20261105173844_reinvitation_after_removal_and_preview_card.sql`. As confirmações anteriores haviam expirado, mas a execução seguinte teve sucesso. O teste revelou uma linha de acesso antiga que exige o complemento `20261105175734_reconcile_stale_access_on_reinvitation.sql`, ainda não executado. Ela permite reentrada somente quando o organizador gerou um link após a retirada, preserva o participante existente, limpa o estado de remoção na confirmação e mantém `organizer_revoked` bloqueado. A mudança deve passar pelo teste de retirada → novo link → mesma conta antes de ser considerada concluída.
 
 Enquanto isso, o site mantém a proteção existente e mostra uma orientação compreensível em vez do erro técnico de acesso revogado.
+
+## Orientação atual
+
+O usuário executa as alterações no Supabase. O arquivo consolidado e as instruções estão em `docs/20261105_supabase_instrucoes.md`. Não aplicar automaticamente o complemento de reentrada ou a visibilidade das respostas.

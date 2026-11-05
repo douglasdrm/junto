@@ -1,0 +1,52 @@
+'use strict';
+/* Account overview and compact people controls reuse existing pages and actions. */
+function accountPlanningOverview(){
+ const account=juntoOnline.user?.id,current=planningDirectory.userId===account,loaded=current&&planningDirectory.loaded,items=loaded?planningDirectory.items:[],error=current&&planningDirectory.error;
+ if(!loaded&&!planningDirectory.loading&&!error)queueMicrotask(()=>refreshPlanningDirectory());
+ if(savedEventInvitations.userId!==account)queueMicrotask(()=>refreshSavedEventInvitations());
+ const owned=items.filter(item=>planningAccessRole(item)==='organizer'),shared=items.filter(item=>planningAccessRole(item)==='participant'),invitesReady=savedEventInvitations.userId===account&&!savedEventInvitations.loading&&!savedEventInvitations.error;
+ const metrics=`<div class="account-overview-metrics">${metric('Organizando',loaded?owned.length:'—')}${metric('Participando',loaded?shared.length:'—')}${metric('Convites recebidos',invitesReady?savedEventInvitations.items.length:'—')}</div>`;
+ const recent=items.slice(0,6).map(item=>`<button type="button" class="account-planning-choice" data-open-online-trip="${esc(item.trip_id)}" data-online-role="${planningAccessRole(item)}"><span>${juntoIcon(['event','celebration'].includes(item.event_type)?'calendar':'pin')}</span><div><strong>${esc(item.name||'Planejamento')}</strong><small>${planningAccessRole(item)==='organizer'?'Você organiza':'Você participa'}</small></div><span aria-hidden="true">→</span></button>`).join('');
+ return simpleShell('Seus próximos encontros','Selecione um planejamento para acompanhar os detalhes do grupo.','<button type="button" class="button secondary" data-workspace-refresh>Atualizar</button><button type="button" class="button primary" data-new-trip>+ Novo planejamento</button>',`<section class="account-planning-overview">${metrics}<section class="card"><div class="section-head"><div><h2>Por onde vamos começar?</h2><p>Abra um evento ou viagem para ver participantes, listas e valores.</p></div></div>${error?'<p role="alert">Não foi possível atualizar seus planejamentos. Use Atualizar para tentar novamente.</p>':!loaded?'<p role="status">Carregando seus planejamentos…</p>':recent||'<p class="help">Você ainda não tem um planejamento. Crie o primeiro ou abra um convite recebido.</p>'}<button type="button" class="button secondary" data-open-planning-directory>Ver viagens, eventos e convites</button></section></section>`);
+}
+const homeBeforeAccountOverview=simpleHome;
+simpleHome=function(...args){return juntoOnline.user&&!juntoOnline.user.is_anonymous&&!trip()?accountPlanningOverview():homeBeforeAccountOverview(...args)};
+const directoryRefreshBeforeOverview=refreshPlanningDirectory;
+refreshPlanningDirectory=async function(...args){await directoryRefreshBeforeOverview(...args);if(db.simplePage==='inicio'&&!trip()&&!juntoOnline.participantTripId)render()};
+const savedInvitesRefreshBeforeOverview=refreshSavedEventInvitations;
+refreshSavedEventInvitations=async function(...args){await savedInvitesRefreshBeforeOverview(...args);if(db.simplePage==='inicio'&&!trip()&&!juntoOnline.participantTripId)render()};
+const peopleBeforeCompactActions=simplePeople;
+simplePeople=function(...args){
+ const html=peopleBeforeCompactActions(...args);if(!trip())return html;
+ const template=document.createElement('template');template.innerHTML=html;const root=template.content,header=root.querySelector('.page-head'),actions=header?.querySelector('.head-actions');
+ if(actions){const tools=document.createElement('section');tools.className='card people-action-toolbar';tools.setAttribute('aria-label','Organizar participantes');actions.className='people-toolbar-actions';actions.querySelectorAll('button').forEach(button=>{const original=button.textContent.trim();button.title=original;if(button.hasAttribute('data-general-invite')){button.className='button primary';button.textContent='Compartilhar convite'}else{button.className='button secondary';if(button.hasAttribute('data-include-organizer'))button.textContent='Eu também vou';if(button.hasAttribute('data-refresh-online-trip'))button.textContent='Atualizar'}});tools.append(actions);header.after(tools)}
+ root.querySelector('.simple-metrics')?.classList.add('people-summary-metrics');
+ root.querySelectorAll('[data-edit-person-v3],[data-remove-person-trip]').forEach(button=>{const editing=button.hasAttribute('data-edit-person-v3'),id=button.dataset.editPersonV3||button.dataset.removePersonTrip,name=people().find(person=>person.id===id)?.name||'participante',label=`${editing?'Editar':'Retirar'} ${name}${editing?'':' do planejamento'}`;button.type='button';button.classList.add('person-icon-action');button.setAttribute('aria-label',label);button.title=label;button.innerHTML=juntoIcon(editing?'edit':'trash')});
+ root.querySelector('.split')?.insertAdjacentHTML('beforebegin','<section class="card invitation-responses-card" data-event-invitation-responses></section>');
+ return template.innerHTML;
+};
+const organizerResponses=new Map(),organizerResponseLoads=new Map();
+function organizerResponseContext(){return juntoOnline.user&&!juntoOnline.user.is_anonymous&&!juntoOnline.participantTripId&&activeOnlineLink()?`${juntoOnline.user.id}:${activeOnlineLink().tripId}`:''}
+function paintOrganizerResponses(){
+ const node=document.querySelector('[data-event-invitation-responses]');if(!node)return;const context=organizerResponseContext();if(!context){node.remove();return}const state=organizerResponses.get(context),labels={pending:'Ainda não respondeu',maybe:'Ainda não sei',accepted:'Confirmou participação'};
+ node.innerHTML=`<div class="section-head"><div><h2>Respostas ao convite</h2><p>“Ainda não sei” mantém o convite salvo e não confirma presença.</p></div><button type="button" class="button secondary small" data-refresh-invitation-responses>Atualizar</button></div>${!state?'<p role="status">Consultando respostas…</p>':state.error?`<p class="notice warn" role="alert">${state.error==='schema'?'As respostas precisam da atualização do Supabase. Depois de executar o SQL enviado, clique em Atualizar.':'Não foi possível consultar as respostas. Confira sua conexão e clique em Atualizar.'}</p>`:state.items.length?`<div class="invitation-response-list">${state.items.map(item=>`<article><div><strong>${esc(item.name||'Convidado')}</strong><small>${item.updated_at?esc(new Date(item.updated_at).toLocaleString('pt-BR')):''}</small></div><span class="response-status ${esc(item.response)}">${labels[item.response]||'Aguardando resposta'}</span></article>`).join('')}</div>`:'<p class="help">Nenhuma resposta recebida por convite geral. As confirmações serão exibidas aqui quando as pessoas responderem com suas contas.</p>'}`;
+}
+async function refreshOrganizerResponses(force=false){
+ const context=organizerResponseContext();if(!context)return;const cached=organizerResponses.get(context);if(!force&&cached&&Date.now()-cached.at<45000){paintOrganizerResponses();return}if(organizerResponseLoads.has(context))return organizerResponseLoads.get(context);
+ const tripId=activeOnlineLink().tripId,account=juntoOnline.user.id;
+ const promise=(async()=>{try{const {data,error}=await juntoOnline.client.rpc('list_trip_invitation_responses',{target_trip:tripId});if(error)throw error;if(organizerResponseContext()!==context||juntoOnline.user?.id!==account)return;organizerResponses.set(context,{at:Date.now(),items:Array.isArray(data)?data:[],error:false})}catch(error){if(organizerResponseContext()===context)organizerResponses.set(context,{at:Date.now(),items:[],error:['PGRST202','42883'].includes(error?.code)?'schema':'network'})}finally{organizerResponseLoads.delete(context);if(organizerResponseContext()===context)paintOrganizerResponses()}})();organizerResponseLoads.set(context,promise);return promise;
+}
+const renderBeforePeopleExperience=render;
+render=function(...args){renderBeforePeopleExperience(...args);if(db.simplePage==='pessoas'&&!juntoOnline.participantTripId){paintOrganizerResponses();if(document.querySelector('[data-event-invitation-responses]'))void refreshOrganizerResponses()}};
+const notificationBeforeResponses=notificationItemMarkup;
+notificationItemMarkup=function(item){if(item.type!=='invitation_maybe')return notificationBeforeResponses(item);return `<article class="record notification-record"><div><strong>${esc(item.requester_name||'Uma pessoa')} respondeu “Ainda não sei”</strong><div class="record-meta">${esc(item.trip_name)}</div><p class="help">A presença ainda não foi confirmada.</p></div><button type="button" class="button secondary small" data-open-response-trip="${esc(item.trip_id)}">Ver respostas</button></article>`};
+const notificationPanelBeforeResponses=notificationPanelMarkup;
+notificationPanelMarkup=function(){return notificationPanelBeforeResponses().replace('Vínculos e compras aguardando sua conferência nos planejamentos que você administra.','Pedidos de acesso, compras e respostas aos convites dos seus planejamentos.')};
+document.addEventListener('click',async event=>{
+ if(event.target.closest('[data-workspace-refresh]')){void refreshPlanningDirectory();return}
+ if(event.target.closest('[data-open-planning-directory]')){openPlanningDirectory();return}
+ if(event.target.closest('[data-refresh-invitation-responses]')){void refreshOrganizerResponses(true);return}
+ if(event.target.closest('[data-open-event-people]')){if(juntoOnline.participantTripId){const section=document.querySelector('.guest-attendance-list');if(section){section.open=true;section.querySelector('summary')?.focus();section.scrollIntoView({behavior:'smooth',block:'start'})}}else{db.simplePage='pessoas';db.legacyPage='';saveLocal();render();closeMenu()}return}
+ const notification=event.target.closest('[data-open-response-trip]');if(notification){const account=juntoOnline.user?.id;closeModal();await loadOnlineTrip(notification.dataset.openResponseTrip);if(juntoOnline.user?.id!==account||activeOnlineLink()?.tripId!==notification.dataset.openResponseTrip)return;db.simplePage='pessoas';db.legacyPage='';render();void refreshOrganizerResponses(true)}
+});
+window.addEventListener('focus',()=>{if(db.simplePage==='pessoas'&&document.visibilityState!=='hidden')void refreshOrganizerResponses(true)});
