@@ -40,7 +40,7 @@ async function refreshVisualParticipants(remoteId){const userId=juntoOnline.user
 function decoratePeoplePhotos(){if(juntoOnline.participantTripId||db.simplePage!=='pessoas')return;const rows=document.querySelectorAll('#app .split>.card:first-child .record');rows.forEach((row,index)=>{const person=people()[index];if(!person||row.querySelector('[data-visual-person]'))return;const identity=row.firstElementChild;row.classList.add('participant-person-row');identity.classList.add('visual-person-identity');identity.insertAdjacentHTML('afterbegin',`<span data-visual-person="${esc(person.id)}">${avatarMarkup(person.name)}</span>`)});if(activeOnlineLink())void refreshVisualParticipants(activeOnlineLink().tripId)}
 function decorateDirectoryPhotos(){
   document.querySelectorAll('.directory-event-card[data-event-open]').forEach(card=>{
-    const remoteId=card.dataset.eventOpen;if(!card.querySelector('[data-avatar-stack]'))card.querySelector('.directory-event-footer')?.insertAdjacentHTML('beforebegin',`<button type="button" class="visual-avatar-stack" data-open-event-people aria-label="Ver participantes" title="Ver participantes" data-avatar-stack="${esc(remoteId)}"></div>`);
+    const remoteId=card.dataset.eventOpen;if(!card.querySelector('[data-avatar-stack]'))card.querySelector('.directory-event-footer')?.insertAdjacentHTML('beforebegin',`<button type="button" class="visual-avatar-stack" data-open-event-people aria-label="Ver participantes" title="Ver participantes" data-avatar-stack="${esc(remoteId)}"></button>`);
     void refreshVisualParticipants(remoteId);
   });
 }

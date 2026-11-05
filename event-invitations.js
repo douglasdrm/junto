@@ -27,13 +27,31 @@ function confirmGeneralInvitation(){
  if(!registeredInvitationAccount())return authenticateForInvitation('accepted');
  modal(`Participar de ${generalInvitation.details.name}`,'Confirme como seu nome aparecerá para o grupo.',`<form id="join-trip"><div class="stack">${field('joinName','Seu nome','text',juntoOnline.profile?.display_name||'','required minlength="2" maxlength="100" autocomplete="name"')}${field('joinPhone','Telefone (opcional)','tel',juntoOnline.profile?.phone||'','maxlength="40" autocomplete="tel"')}<button type="submit" class="button primary">Confirmar participação</button></div></form>`);
 }
-function authenticateForInvitation(answer){
- if(generalInvitation?.token)localStorage.setItem('junto_join_intent',JSON.stringify({token:generalInvitation.token,answer}));
- // Preserve an existing anonymous identity, including its old payments, through email upgrade.
- if(juntoOnline.user?.is_anonymous){modal('Guarde seu acesso ao evento','Vincule seu e-mail para responder e continuar acessando em outros aparelhos.',`<form id="guest-upgrade"><div class="stack">${field('guestUpgradeName','Seu nome','text',juntoOnline.profile?.display_name||'','required minlength="2" maxlength="100" autocomplete="name"')}${field('guestUpgradeEmail','Seu e-mail','email','','required autocomplete="email"')}<button class="button primary">Vincular e-mail e criar conta</button></div></form><p class="help">Isso preserva seu cadastro anterior. Confirme o e-mail para concluir.</p>`);return}
+async function authenticateForInvitation(answer){
+ const token=generalInvitation?.token||pendingJoin();
+ if(token)localStorage.setItem('junto_join_intent',JSON.stringify({token,answer}));
+ // A temporary guest session must not route into the old email-only upgrade form.
+ // Sign out on this device only; server-side participants and payments remain untouched.
+ if(juntoOnline.user?.is_anonymous){
+  try{
+   const {error}=await juntoOnline.client.auth.signOut({scope:'local'});
+   if(error)throw error;
+   if(juntoOnline.user?.is_anonymous){
+    juntoOnline.user=null;juntoOnline.profile=null;
+    if(typeof isolateAccountWorkspace==='function')isolateAccountWorkspace(null);
+   }
+   if(token){localStorage.setItem('junto_pending_join',token);localStorage.setItem('junto_join_intent',JSON.stringify({token,answer}))}
+  }catch(error){authModal('login');showAuthFeedback(authMessage(error,'Não foi possível encerrar o acesso temporário. Tente novamente.'));return}
+ }
  authModal('login');
- const form=document.querySelector('#online-login');if(form)form.insertAdjacentHTML('afterbegin','<div class="notice info">Seu convite está guardado. Entre com Google ou e-mail, ou crie uma conta, para salvar sua resposta e acessar o evento depois.</div>');
 }
+const authBeforeGeneralInvitation=authModal;
+authModal=function(mode='login'){
+ authBeforeGeneralInvitation(mode);
+ if(!pendingJoin())return;
+ const form=document.querySelector('#online-login,#online-signup,#online-forgot');
+ if(form&&!form.querySelector('[data-general-invite-auth-context]'))form.insertAdjacentHTML('afterbegin','<div class="notice info" data-general-invite-auth-context>Seu convite está guardado. Entre com Google ou e-mail, ou crie sua conta com e-mail e senha. Depois você continuará de onde parou.</div>');
+};
 async function saveGeneralInvitationAnswer(answer){
  if(!registeredInvitationAccount())return authenticateForInvitation(answer);
  if(answer==='accepted')return confirmGeneralInvitation();
