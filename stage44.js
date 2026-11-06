@@ -22,7 +22,7 @@ function repairRenamedDuplicateMembers(){
 
 repairRenamedDuplicateMembers();
 
-function familyWorkspaceView(){return db.preferences.familyWorkspaceView||'tree'}
+function familyWorkspaceView(){return db.preferences?.familyWorkspaceView||'tree'}
 function activeGroupTrip(){return (db.trips||[]).find(item=>item.id===db.active&&item.groupId===db.activeGroupId)||(db.trips||[]).find(item=>item.groupId===db.activeGroupId&&tripLifecycle(item)!=='completed')}
 function tripMembersForRooms(item=activeGroupTrip()){if(!item)return[];const participantIds=new Set((db.people||[]).filter(person=>person.trip===item.id&&person.removedFromTrip!==true).map(person=>person.memberId));return groupMembers().filter(member=>participantIds.has(member.id))}
 function roomsForTrip(item=activeGroupTrip()){return item?(db.roomPlans||[]).filter(room=>room.trip===item.id):[]}

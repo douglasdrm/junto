@@ -67,3 +67,7 @@ window.addEventListener('click',event=>{
  if(button.matches('[data-simple-page="pessoas"]')&&trip())return;
  event.preventDefault();event.stopImmediatePropagation();db.legacyPage='';db.simplePage='grupos';db.activeGroupId=trip()?.groupId||db.activeGroupId||permanentGroups()[0]?.id||'';render();
 },true);
+
+// Older online snapshots may omit UI preferences. The family tools write them too.
+const renderBeforeWorkspacePreferences=render;
+render=function(...args){db.preferences||={};return renderBeforeWorkspacePreferences(...args)};
