@@ -17,7 +17,7 @@ const savedInvitesRefreshBeforeOverview=refreshSavedEventInvitations;
 refreshSavedEventInvitations=async function(...args){await savedInvitesRefreshBeforeOverview(...args);if(db.simplePage==='inicio'&&!trip()&&!juntoOnline.participantTripId)render()};
 const peopleBeforeCompactActions=simplePeople;
 simplePeople=function(...args){
- const html=peopleBeforeCompactActions(...args);if(!trip())return html;
+ const html=peopleBeforeCompactActions(...args);if(!trip())return groupsPage();
  const template=document.createElement('template');template.innerHTML=html;const root=template.content,header=root.querySelector('.page-head'),actions=header?.querySelector('.head-actions');
  if(actions){const tools=document.createElement('section');tools.className='card people-action-toolbar';tools.setAttribute('aria-label','Organizar participantes');actions.className='people-toolbar-actions';actions.querySelectorAll('button').forEach(button=>{const original=button.textContent.trim();button.title=original;if(button.hasAttribute('data-general-invite')){button.className='button primary';button.textContent='Compartilhar convite'}else{button.className='button secondary';if(button.hasAttribute('data-include-organizer'))button.textContent='Eu também vou';if(button.hasAttribute('data-refresh-online-trip'))button.textContent='Atualizar'}});tools.append(actions);header.after(tools)}
  root.querySelector('.simple-metrics')?.classList.add('people-summary-metrics');
@@ -59,3 +59,11 @@ document.addEventListener('click',async event=>{
  const notification=event.target.closest('[data-open-response-trip]');if(notification){const account=juntoOnline.user?.id;closeModal();await loadOnlineTrip(notification.dataset.openResponseTrip);if(juntoOnline.user?.id!==account||activeOnlineLink()?.tripId!==notification.dataset.openResponseTrip)return;db.simplePage='pessoas';db.legacyPage='';render();void refreshOrganizerResponses(true)}
 });
 window.addEventListener('focus',()=>{if(db.simplePage==='pessoas'&&document.visibilityState!=='hidden')void refreshOrganizerResponses(true)});
+
+// Route account groups explicitly; keep the selected planning and existing permissions.
+window.addEventListener('click',event=>{
+ const button=event.target.closest('[data-simple-page="grupos"],[data-open-legacy="grupos"],[data-simple-page="pessoas"]');
+ if(!button||juntoOnline.participantTripId)return;
+ if(button.matches('[data-simple-page="pessoas"]')&&trip())return;
+ event.preventDefault();event.stopImmediatePropagation();db.legacyPage='';db.simplePage='grupos';db.activeGroupId=trip()?.groupId||db.activeGroupId||permanentGroups()[0]?.id||'';render();
+},true);
