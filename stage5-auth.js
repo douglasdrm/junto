@@ -30,7 +30,7 @@ function showOnlineFailure(title,error,fallback){
   console.error(error);const message=error?.message||fallback,details=error?.details||error?.hint||'',code=error?.code||'';
   modal(title,'O Supabase devolveu os detalhes abaixo.',`<div class="stack"><div class="notice warn"><strong>${esc(message)}</strong>${details?`<p>${esc(details)}</p>`:''}${code?`<p>Código: <code>${esc(code)}</code></p>`:''}</div><p class="help">Essas informações ajudam a corrigir o problema. Você pode tirar um print desta janela e enviar.</p><div class="actions"><button type="button" class="button primary" data-close>Fechar</button></div></div>`);
 }
-function updateOnlineNote(){const note=document.querySelector('.side-note');if(!note)return;const linked=Boolean(juntoOnline.user&&activeOnlineLink()),terms=onlinePlanTerms();note.innerHTML=`<i></i> ${linked?'Planejamento sincronizado online':juntoOnline.user?`Conta conectada · ${terms.kind} ainda local`:'Dados salvos somente neste navegador'}`}
+function updateOnlineNote(){const note=document.querySelector('.side-note');if(!note)return;const linked=Boolean(juntoOnline.user&&activeOnlineLink()),terms=onlinePlanTerms();note.innerHTML=`<i></i> ${linked?'Planejamento sincronizado online':juntoOnline.user?`Conta conectada · ${terms.kind} ainda local`:'Demonstração · entre para salvar seus dados'}`}
 function updateAccountButton(){
   const user=juntoOnline.user,connected=Boolean(user&&!user.is_anonymous),name=juntoOnline.profile?.display_name||user?.email||'Minha conta';
   document.querySelectorAll('[data-account]').forEach(button=>{
