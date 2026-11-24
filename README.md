@@ -61,10 +61,13 @@ Nunca coloque a `secret key` ou a chave `service_role` em arquivos servidos pelo
 ## Limitações importantes
 - A sincronização usa revisões para impedir que dois administradores sobrescrevam silenciosamente as alterações um do outro. Se houver conflito, reabra a viagem online antes de editar.
 - O painel administrativo da plataforma ainda não gerencia usuários, convites ou permissões em uma tela própria.
-- Apenas organizadores convidados têm acesso à viagem online nesta etapa; o perfil limitado de participante virá depois.
-- Não há leitura automática de anúncios, preços, disponibilidade ou pagamentos.
+- Não há leitura automática de anúncios, preços, disponibilidade ou pagamentos. Pagamentos registrados não são transferências nem Pix confirmados.
+- Planos e preços já existem no banco (`junto_plan_catalog`: Grátis, Essencial e Completo, provedor Asaas), mas `checkout_enabled` e `enforcement_enabled` estão desligados: ninguém consegue pagar e os limites ainda não são aplicados.
 - A viagem inicial está identificada como demonstração e seus valores são ilustrativos.
-- Não use informações financeiras sensíveis ou de outras pessoas neste protótipo.
 
-## Próxima etapa para produção
-Vincular participantes cadastrados a contas próprias, permitir envio e conferência de comprovantes e criar uma tela para administrar acessos da viagem.
+## Recursos já disponíveis além da Etapa 5
+Convites individuais de participantes, convites gerais para eventos, administradores por evento, envio e conferência de comprovantes de compra, lista "quem leva o quê", acompanhantes e resumo financeiro compartilhado. Os detalhes estão em `docs/`.
+
+## Documentação técnica
+- `docs/auditoria-rls.md` — revisão das políticas de segurança do Supabase.
+- `docs/plano-refatoracao-front.md` — plano para sair dos arquivos `stage*` e adotar um build com módulos.
