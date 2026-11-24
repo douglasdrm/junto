@@ -62,6 +62,8 @@ async function quickPersist(){
   if(quickMeta.includeOrganizer!==false)includeOrganizerParticipant(next,tripId);
   next.active=tripId;next.activeGroupId=groupId;next.page='inicio';next.simplePage='inicio';next.legacyPage='';
   if(!await publishNewPlanning(next,tripId))return;
+  const organizerPerson=next.people.find(person=>person.trip===tripId&&!person.removedFromTrip&&person.profileId&&person.profileId===juntoOnline.user?.id),remoteTripId=next.onlineTrips?.[tripId]?.tripId;
+  if(organizerPerson&&remoteTripId){try{const {error}=await juntoOnline.client.rpc('link_my_participant',{target_trip:remoteTripId,local_participant_id:organizerPerson.id});if(error)throw error}catch(error){console.warn('Não foi possível vincular o organizador ao próprio cadastro',error)}}
   db=next;saveLocal();quickJustCreated=tripId;quickPeople=[];quickKnown.clear();quickMeta={type:'',name:'',region:'',groupId,groupName:'',eventDate:'',startTime:'',endTime:'',address:'',addressComplement:''};render();updateAccountButton();
   toast(isEvent?'Evento criado e salvo online.':'Viagem criada e salva online.');
 }
