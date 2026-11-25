@@ -50,6 +50,26 @@ alter default privileges in schema public revoke all on tables from anon;
 
 Os planos Grátis (10 pessoas, 1 planejamento ativo), Essencial (R$ 9,90) e Completo (R$ 19,90) estão cadastrados, mas `checkout_enabled` e `enforcement_enabled` estão em `false`. Quando os limites forem ligados, eles precisam ser verificados nas RPCs que criam participantes e planejamentos, não no front. Hoje `get_planning_plan` só informa os limites.
 
+## Correções aplicadas em 2026-11-25
+
+A migration `20261125120000_harden_access_and_submissions.sql` corrige os achados 1 a 4, e o teste `supabase/tests/access_hardening.sql` cobre cada um deles:
+
+- **Achado 1:** a política `access_managed_by_organizer` foi removida e `insert/update/delete` em `trip_access` foram revogados de `authenticated`. A leitura continua igual. Todas as funções que escrevem nessa tabela são `security definer`, então convites, vínculos, revogação e administradores seguem funcionando.
+- **Achados 2 e 3:**
+  - Corrigido também um bug na política de envio: `tp.trip_id=trip_id` comparava a coluna com ela mesma, então aceitava participante de outra viagem.
+  - O update agora é limitado por coluna: `trip_id`, `participant_id` e `submitted_by` não mudam mais.
+  - O organizador só altera os campos de revisão, sempre com `reviewed_by` igual à própria conta.
+  - O trigger `guard_payment_submission_update` impede que outra pessoa altere valor, data ou observação.
+- **Achado 4:**
+  - `anon` perdeu o acesso direto a todas as tabelas e sequências, inclusive nos privilégios padrão de objetos futuros.
+  - Nas funções, `anon` ficou só com as quatro prévias públicas.
+  - O acesso de `authenticated` e `service_role` às funções foi preservado exatamente como estava.
+
+Validado num PostgreSQL 16 local, com uma simulação mínima do Supabase (papéis, `auth.uid()`, `storage`):
+- as 52 migrations aplicam em sequência;
+- os 17 testes de `supabase/tests/` passam;
+- a comparação de privilégios antes e depois mostra que `authenticated` não perdeu nenhuma função.
+
 ## Tabela por tabela (políticas efetivas)
 
 | Tabela | Leitura | Escrita |
@@ -57,13 +77,13 @@ Os planos Grátis (10 pessoas, 1 planejamento ativo), Essencial (R$ 9,90) e Comp
 | profiles | o próprio usuário | o próprio usuário, só 4 colunas |
 | travel_groups, group_members, family_relationships | dono do grupo | dono do grupo |
 | trips | organizadores | insert: dono do grupo; update: organizador que também é dono do grupo |
-| trip_access | o próprio usuário ou organizadores | **organizadores (achado 1)** |
+| trip_access | o próprio usuário ou organizadores | só RPC (corrigido) |
 | trip_participants | organizadores ou participante vinculado com acesso | organizadores |
 | trip_invites, trip_join_links | organizadores | organizadores |
 | trip_snapshots | organizadores | só RPC (`sync_trip_snapshot`) |
 | audit_events | organizadores | só RPC/trigger |
 | member_profile_links | o próprio usuário ou dono do grupo | só RPC |
 | migration_imports | dono | dono |
-| payment_submissions | organizador ou quem enviou | quem enviou (**achado 2**), organizador (**achado 3**) |
+| payment_submissions | organizador ou quem enviou | quem enviou, só no próprio cadastro; organizador, só nos campos de revisão (corrigido) |
 | payment_receipts | organizador ou quem enviou | quem enviou |
 | demais 15 tabelas | só RPC | só RPC |
