@@ -32,7 +32,7 @@ Chegar a um código em módulos ES com um único dono para cada tela e cada regr
 1. Adotar o **Vite** com `index.html` como entrada.
 2. Criar um `src/legacy.js` que importa os scripts atuais na mesma ordem do `index.html`, como scripts clássicos concatenados (ou com `import './app.js'` e `globalThis` onde for preciso).
 3. Remover todas as query strings `?v=`, porque o Vite passa a gerar arquivos com hash.
-4. Instalar `@supabase/supabase-js` via npm e eliminar a CDN. Isso também resolve a falta de SRI.
+4. Instalar `@supabase/supabase-js` via npm no lugar da cópia em `vendor/`.
 5. Verificar o deploy de preview na Vercel e só então fazer o merge.
 
 ### Fase 2: consolidar por tela (incremental, uma tela por PR)
@@ -58,5 +58,5 @@ Ordem sugerida, da mais sobrescrita para a menos: `finance`, `participants`, `tr
 - Não misturar refatoração e funcionalidade nova no mesmo PR.
 
 ## Pendências relacionadas
-- **SRI no `supabase-js`:** é resolvida na Fase 1. Até lá, dá para adicionar `integrity="sha384-…" crossorigin="anonymous"` com o hash gerado em <https://www.srihash.org/> para a URL fixada (`@2.117.3`).
+- **SRI no `supabase-js`:** resolvido. A biblioteca (2.117.3, licença MIT) agora é servida de `vendor/`, e a CSP do `vercel.json` só aceita scripts do próprio site. Na Fase 1, ela passa a vir do npm.
 - **Texto padrão da barra lateral:** o `index.html` traz "Dados salvos somente neste navegador", que é corrigido por `updateOnlineNote()` depois do login. Visitantes logados podem ver esse texto por um instante antes da atualização. Vale trocar o padrão do HTML por um texto neutro quando a tela for consolidada.
