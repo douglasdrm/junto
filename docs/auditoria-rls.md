@@ -86,4 +86,5 @@ Validado num PostgreSQL 16 local, com uma simulação mínima do Supabase (papé
 | migration_imports | dono | dono |
 | payment_submissions | organizador ou quem enviou | quem enviou, só no próprio cadastro; organizador, só nos campos de revisão (corrigido) |
 | payment_receipts | organizador ou quem enviou | quem enviou |
+| account_people_workspaces | só RPC (a própria conta) | só RPC, com revisão; descarta grupos de planejamentos de terceiros |
 | demais 15 tabelas | só RPC | só RPC |

@@ -70,6 +70,12 @@ O `vercel.json` aplica uma Content-Security-Policy a todo o site. Ela só libera
 ## Recursos já disponíveis além da Etapa 5
 Convites individuais de participantes, convites gerais para eventos, administradores por evento, envio e conferência de comprovantes de compra, lista "quem leva o quê", acompanhantes e resumo financeiro compartilhado. Os detalhes estão em `docs/`.
 
+## Grupos da conta
+
+Grupos, pessoas, Turmas, vínculos familiares, mapa e preferências de quarto pertencem à conta (`account-people.js`). Eles ficam disponíveis no menu "Pessoas", aba "Grupos e família", mesmo sem um planejamento aberto. São salvos com revisão pelas funções `get_account_people_workspace` e `save_account_people_workspace` (migration `20261126120000_account_people_workspace.sql`).
+
+Na primeira entrada depois da migration, a conta é inicializada com os grupos dos planejamentos dos quais a pessoa é dona. Grupos que só existem em planejamentos de outras pessoas não entram na conta: um coadministrador continua vendo esses grupos apenas com o planejamento aberto. Enquanto a migration não for aplicada, o app funciona como antes.
+
 ## Testes
 
 Os testes rodam automaticamente em cada pull request (`.github/workflows/tests.yml`). Para rodar localmente:
