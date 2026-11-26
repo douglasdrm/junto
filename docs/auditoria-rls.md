@@ -66,7 +66,7 @@ A migration `20261125120000_harden_access_and_submissions.sql` corrige os achado
   - O acesso de `authenticated` e `service_role` às funções foi preservado exatamente como estava.
 
 Validado num PostgreSQL 16 local, com uma simulação mínima do Supabase (papéis, `auth.uid()`, `storage`):
-- as 52 migrations aplicam em sequência;
+- as 54 migrations aplicam em sequência;
 - os 17 testes de `supabase/tests/` passam;
 - a comparação de privilégios antes e depois mostra que `authenticated` não perdeu nenhuma função.
 

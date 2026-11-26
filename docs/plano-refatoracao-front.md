@@ -23,6 +23,9 @@ Chegar a um código em módulos ES com um único dono para cada tela e cada regr
 ## Fases
 
 ### Fase 0: rede de segurança (1 dia)
+
+> **Feito em 2026-11-26** (itens 1 e 2): `tests/package.json` com `npm test`, os 25 testes passando e CI de front-end e banco. A formatação com Prettier (item 3) continua pendente.
+
 1. Criar `package.json` com `jsdom` como devDependency e o script `"test": "for f in tests/*.cjs; do node $f || exit 1; done"`.
    - Na Vercel, definir *Build Command* vazio ou `npm run build` só a partir da Fase 1, e *Output Directory* como `.` até lá. Assim a presença do `package.json` não muda o deploy.
 2. Rodar os testes num GitHub Action a cada PR.

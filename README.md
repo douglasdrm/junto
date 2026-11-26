@@ -70,6 +70,18 @@ O `vercel.json` aplica uma Content-Security-Policy a todo o site. Ela só libera
 ## Recursos já disponíveis além da Etapa 5
 Convites individuais de participantes, convites gerais para eventos, administradores por evento, envio e conferência de comprovantes de compra, lista "quem leva o quê", acompanhantes e resumo financeiro compartilhado. Os detalhes estão em `docs/`.
 
+## Testes
+
+Os testes rodam automaticamente em cada pull request (`.github/workflows/tests.yml`). Para rodar localmente:
+
+```bash
+cd tests && npm ci && npm test
+```
+
+O `package.json` fica em `tests/` para não mudar o deploy estático da Vercel. `npm test -- potluck` roda só os testes cujo nome contém "potluck".
+
+Banco: `supabase/ci/run-tests.sh` aplica todas as migrations num PostgreSQL vazio, com uma simulação mínima do Supabase, e roda `supabase/tests/*.sql`. A conexão usa as variáveis `PGHOST`, `PGUSER` e `PGPASSWORD`. Os testes SQL também podem ser executados no SQL Editor de um projeto de staging: cada um desfaz tudo no final.
+
 ## Documentação técnica
 - `docs/auditoria-rls.md` — revisão das políticas de segurança do Supabase.
 - `docs/plano-refatoracao-front.md` — plano para sair dos arquivos `stage*` e adotar um build com módulos.

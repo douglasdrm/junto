@@ -1,0 +1,14 @@
+{
+  "name": "junto-tests",
+  "private": true,
+  "description": "Testes do front-end. Fica em tests/ para não alterar o deploy estático da Vercel.",
+  "scripts": {
+    "test": "node run-all.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "jsdom": "24.1.3"
+  }
+}
