@@ -17,7 +17,8 @@ if(!db.marketViewByTrip)db.marketViewByTrip={};
 if(!db.simplePage)db.simplePage='inicio';
 if(['gastos','compras'].includes(db.simplePage))db.simplePage='financeiro';
 if(!['resumo','aluguel','mercado','extras'].includes(db.simpleFinanceTab))db.simpleFinanceTab='resumo';
-const SIMPLE_NAV=[['inicio','⌂','Visão geral'],['viagens','◇','Viagens e eventos'],['grupos','◎','Grupos'],['contribuicoes','$','Contribuições'],['financeiro','▤','Financeiro'],['pessoas','♙','Pessoas'],['mais','•••','Mais']];
+// "Pessoas" reúne participantes e grupos da conta (abas em people-hub.js).
+const SIMPLE_NAV=[['inicio','⌂','Visão geral'],['viagens','◇','Viagens e eventos'],['pessoas','♙','Pessoas'],['contribuicoes','$','Contribuições'],['financeiro','▤','Financeiro'],['mais','•••','Mais']];
 let simpleMapPointer=null,simpleMapMoved=false;
 const tripYields=()=>(db.fundYields||=[]).filter(item=>item.trip===db.active);
 const tripFundSnapshots=()=>(db.fundSnapshots||=[]).filter(item=>item.trip===db.active);
