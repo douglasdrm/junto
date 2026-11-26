@@ -337,3 +337,12 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 .outside-person-row .record-actions>[data-add-person-trip]{grid-column:1/-1;justify-self:end;order:0;width:max-content;max-width:100%}
 .outside-person-row .record-actions>[data-edit-member]{grid-column:2;justify-self:end;order:3}
 @media(max-width:480px){.record:is(.participant-person-row,.outside-person-row){grid-template-columns:minmax(0,1fr);gap:10px}.record:is(.participant-person-row,.outside-person-row)>.record-actions{width:max-content;max-width:100%;justify-self:end}.record:is(.participant-person-row,.outside-person-row) .record-actions>.button:not(.person-icon-action){max-width:100%;font-size:11px}}
+
+/* Diálogo de confirmação (dialogs.js): fica acima de qualquer modal aberto. */
+.confirm-bg{position:fixed;inset:0;z-index:1100;display:grid;place-items:center;padding:18px;background:#222c4c80;backdrop-filter:blur(4px)}
+.confirm-dialog{width:min(440px,100%);padding:24px}
+.confirm-dialog h2{margin:0 0 8px;font-size:1.2rem}
+.confirm-dialog .confirm-message{margin:0 0 20px;color:var(--ds-muted,#5b6478);line-height:1.5;white-space:pre-line}
+.confirm-dialog .actions{justify-content:flex-end}
+@media (max-width:520px){.confirm-bg{place-items:end center;padding:12px}.confirm-dialog .actions{flex-direction:column-reverse}.confirm-dialog .actions .button{width:100%}}
+.modal:focus,.confirm-dialog:focus{outline:none}
