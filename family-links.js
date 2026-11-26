@@ -60,6 +60,12 @@ function describeFamilyLink(relation,viewerId){
   return `${text[0].toUpperCase()}${text.slice(1)} ${name}`;
 }
 
+// Frase completa a partir de quem está em "from": "Ricardo é pai/mãe de Thalles".
+function familyLinkSentence(relation){
+  const {option}=familyLinkView(relation,relation.fromMemberId),from=familyMemberName(relation.fromMemberId),to=familyMemberName(relation.toMemberId);
+  return option==='custom'?`${from} e ${to}: ${relation.label||'outro vínculo'}`:`${from} é ${FAMILY_LINK_BY_VALUE.get(option)[1]} ${to}`;
+}
+
 function familyLinkKey(from,to,type){return FAMILY_SYMMETRIC.has(type)?[from,to].sort().join('|')+'|'+type:`${from}|${to}|${type}`}
 
 function normalizeFamilyLinks(data){

@@ -103,6 +103,16 @@ const confirmDialog=async()=>{await tick();doc.querySelector('.confirm-bg [data-
   doc.querySelector('[data-member-links] [data-delete-relation]').click();await confirmDialog();
   assert(doc.querySelector('[data-member-links]'),'detalhes continuam abertos e atualizados');
 
+  // Caso relatado: "Thalles é filho de Ricardo" e "Ricardo é pai de Nicollas", inclusive com dados do formulário antigo.
+  run(`db.members.push({id:'ricardo',groupId:'g',name:'Ricardo'},{id:'thalles',groupId:'g',name:'Thalles'},{id:'nicollas',groupId:'g',name:'Nicollas'});
+    db.relationships.push({id:'old-child',groupId:'g',fromMemberId:'thalles',toMemberId:'ricardo',type:'child',label:''});
+    saveFamilyLink({fromId:'ricardo',option:'parent',toId:'nicollas'});render();`);
+  const say=id=>run(`groupRelations().filter(x=>x.fromMemberId==='${id}'||x.toMemberId==='${id}').map(x=>describeFamilyLink(x,'${id}')).sort().join(' · ')`);
+  assert.equal(say('ricardo'),'Pai/mãe de Nicollas · Pai/mãe de Thalles');
+  assert.equal(say('thalles'),'Filho(a) de Ricardo');assert.equal(say('nicollas'),'Filho(a) de Ricardo');
+  assert(run(`mapLines(groupMembers())`).includes('Ricardo é pai/mãe de Thalles'),'linha do mapa com frase direcional');
+  await new Promise(resolve=>setTimeout(resolve,150));
+
   assert.deepEqual(errors,[]);
   console.log('PASS family links: single source, legacy cleanup, editor shows tree links, quick add, direction, edit, delete, sentence form, generations');
 }catch(error){console.error(error,errors);process.exitCode=1}finally{w.close()}})();
