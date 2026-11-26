@@ -56,7 +56,9 @@ Depois de entrar, abra “Minha conta” e leve o planejamento para sua conta. A
 
 O acesso aceita e-mail e senha, recuperação de senha e Google. Para o Google, habilite o provedor em **Authentication → Providers → Google**, informe as credenciais OAuth do Google e cadastre no Google a URL de callback exibida pelo Supabase. Mantenha também a URL pública do aplicativo na lista de URLs de redirecionamento permitidas. O convite é preservado durante o login e aceito automaticamente depois que a conta é autenticada.
 
-Nunca coloque a `secret key` ou a chave `service_role` em arquivos servidos pelo site. Somente a viagem escolhida é enviada; as demais continuam locais até serem conectadas individualmente.
+Nunca coloque a `secret key` ou a chave `service_role` em arquivos servidos pelo site.
+
+O `vercel.json` aplica uma Content-Security-Policy a todo o site. Ela só libera scripts do próprio domínio (o `supabase-js` fica em `vendor/`) e só libera conexões com o projeto Supabase de `supabase/config.js`. **Ao trocar de projeto Supabase, atualize também o `connect-src` do `vercel.json`**; o teste `tests/security-headers.cjs` acusa a divergência. Somente a viagem escolhida é enviada; as demais continuam locais até serem conectadas individualmente.
 
 ## Limitações importantes
 - A sincronização usa revisões para impedir que dois administradores sobrescrevam silenciosamente as alterações um do outro. Se houver conflito, reabra a viagem online antes de editar.
@@ -67,6 +69,24 @@ Nunca coloque a `secret key` ou a chave `service_role` em arquivos servidos pelo
 
 ## Recursos já disponíveis além da Etapa 5
 Convites individuais de participantes, convites gerais para eventos, administradores por evento, envio e conferência de comprovantes de compra, lista "quem leva o quê", acompanhantes e resumo financeiro compartilhado. Os detalhes estão em `docs/`.
+
+## Grupos da conta
+
+Grupos, pessoas, Turmas, vínculos familiares, mapa e preferências de quarto pertencem à conta (`account-people.js`). Eles ficam disponíveis no menu "Pessoas", aba "Grupos e família", mesmo sem um planejamento aberto. São salvos com revisão pelas funções `get_account_people_workspace` e `save_account_people_workspace` (migration `20261126120000_account_people_workspace.sql`).
+
+Na primeira entrada depois da migration, a conta é inicializada com os grupos dos planejamentos dos quais a pessoa é dona. Grupos que só existem em planejamentos de outras pessoas não entram na conta: um coadministrador continua vendo esses grupos apenas com o planejamento aberto. Enquanto a migration não for aplicada, o app funciona como antes.
+
+## Testes
+
+Os testes rodam automaticamente em cada pull request (`.github/workflows/tests.yml`). Para rodar localmente:
+
+```bash
+cd tests && npm ci && npm test
+```
+
+O `package.json` fica em `tests/` para não mudar o deploy estático da Vercel. `npm test -- potluck` roda só os testes cujo nome contém "potluck".
+
+Banco: `supabase/ci/run-tests.sh` aplica todas as migrations num PostgreSQL vazio, com uma simulação mínima do Supabase, e roda `supabase/tests/*.sql`. A conexão usa as variáveis `PGHOST`, `PGUSER` e `PGPASSWORD`. Os testes SQL também podem ser executados no SQL Editor de um projeto de staging: cada um desfaz tudo no final.
 
 ## Documentação técnica
 - `docs/auditoria-rls.md` — revisão das políticas de segurança do Supabase.

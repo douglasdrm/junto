@@ -36,12 +36,18 @@ function patchAdminFinancialOverview(summary){
  }
  if(db.simplePage==='contribuicoes')app.querySelectorAll('.contribution-summary .metric-card').forEach(card=>{const label=card.querySelector('.metric-label');if(['Falta arrecadar','Contribuições a receber'].includes(label?.textContent)){label.textContent='Falta arrecadar';const value=card.querySelector('.metric');if(value)value.textContent=cash(summary.remaining_cents);const note=card.querySelector('.metric-note');if(note)note.textContent='Soma dos saldos a pagar de cada participante'}});
 }
+function showSharedFinanceWarning(){
+ // A visão geral usa a capa do planejamento no lugar de .page-head; o aviso precisa aparecer nas duas.
+ const html='<div class="notice warn shared-finance-status" role="status">Não foi possível atualizar o resumo financeiro online. Os valores locais podem estar desatualizados. <button type="button" class="button secondary small" data-refresh-shared-summary>Tentar novamente</button></div>';
+ const anchor=document.querySelector('#app .page-head, #app .planning-hero');
+ if(anchor)anchor.insertAdjacentHTML('afterend',html);else document.querySelector('#app')?.insertAdjacentHTML('afterbegin',html);
+}
 async function refreshAdminFinancialOverview(force=false){
  const id=activeOnlineLink()?.tripId,account=juntoOnline.user?.id;if(!id||!account||juntoOnline.participantTripId||!['inicio','contribuicoes','financeiro'].includes(db.simplePage))return;
  const key=`${account}:${id}:${activeOnlineLink()?.revision}`,cached=adminFinancialCache.get(key);
  if(!force&&cached&&Date.now()-cached.at<15000){patchAdminFinancialOverview(cached.summary);return}
  const sequence=++adminFinancialSequence;
- try{const {data,error}=await juntoOnline.client.rpc('get_trip_financial_summary',{target_trip:id});if(error)throw error;if(data?.available_cents==null||data?.budget_cents==null)throw Error('Resumo financeiro incompleto');if(!data||sequence!==adminFinancialSequence||juntoOnline.user?.id!==account||activeOnlineLink()?.tripId!==id)return;adminFinancialCache.set(key,{summary:data,at:Date.now()});document.querySelector('.shared-finance-status')?.remove();patchAdminFinancialOverview(data)}catch(error){if(juntoOnline.user?.id===account&&activeOnlineLink()?.tripId===id&&!document.querySelector('.shared-finance-status'))document.querySelector('#app .page-head')?.insertAdjacentHTML('afterend','<div class="notice warn shared-finance-status">Não foi possível atualizar o resumo financeiro online. Os valores locais podem estar desatualizados. <button type="button" class="button secondary small" data-refresh-shared-summary>Tentar novamente</button></div>')}
+ try{const {data,error}=await juntoOnline.client.rpc('get_trip_financial_summary',{target_trip:id});if(error)throw error;if(data?.available_cents==null||data?.budget_cents==null)throw Error('Resumo financeiro incompleto');if(!data||sequence!==adminFinancialSequence||juntoOnline.user?.id!==account||activeOnlineLink()?.tripId!==id)return;adminFinancialCache.set(key,{summary:data,at:Date.now()});document.querySelector('.shared-finance-status')?.remove();patchAdminFinancialOverview(data)}catch(error){if(juntoOnline.user?.id===account&&activeOnlineLink()?.tripId===id&&!document.querySelector('.shared-finance-status'))showSharedFinanceWarning()}
 }
 const renderBeforeSharedFinance=render;
 render=function(...args){renderBeforeSharedFinance(...args);if(juntoOnline.client)void refreshAdminFinancialOverview()};

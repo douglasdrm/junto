@@ -20,7 +20,7 @@ window.addEventListener('click',async event=>{
  const button=event.target.closest('[data-event-admins],[data-remove-event-admin],[data-cancel-event-admin-invite]');if(!button)return;event.preventDefault();event.stopImmediatePropagation();
  if(button.matches('[data-event-admins]'))return eventAdministratorsModal();
  const link=activeOnlineLink();if(!link)return;
- if(button.matches('[data-remove-event-admin]')&&!confirm('Retirar a administração deste planejamento? A participação e os pagamentos serão preservados.'))return;
+ if(button.matches('[data-remove-event-admin]')&&!await askConfirm('A pessoa deixa de administrar este planejamento. A participação e os pagamentos dela são preservados.',{title:'Retirar administração?',confirmLabel:'Retirar administração',danger:true}))return;
  button.disabled=true;const fn=button.matches('[data-remove-event-admin]')?'remove_event_administrator':'cancel_event_admin_invitation',args=fn==='remove_event_administrator'?{target_trip:link.tripId,target_profile:button.dataset.removeEventAdmin}:{target_trip:link.tripId,invitation_id:button.dataset.cancelEventAdminInvite};
  try{const {error}=await juntoOnline.client.rpc(fn,args);if(error)throw error;toast(fn==='remove_event_administrator'?'Administração retirada deste planejamento.':'Convite cancelado.');await eventAdministratorsModal()}catch(error){showOnlineFailure('Não foi possível alterar o acesso',error,'Confira sua permissão de administrador. O criador não pode ser retirado.')}finally{if(button.isConnected)button.disabled=false}
 },true);
