@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {JSDOM,VirtualConsole}=require('jsdom'),root=path.resolve(__dirname,'..'),errors=[];
-let html=fs.readFileSync(path.join(root,'index.html'),'utf8');html=html.replace(/<script src="([^"]+)"><\/script>/g,(m,src)=>src.startsWith('http')?'':`<script>${fs.readFileSync(path.join(root,src.split('?')[0]),'utf8').replaceAll('</script','<\\/script')}</script>`);
+let html=fs.readFileSync(path.join(root,'index.html'),'utf8');html=html.replace(/<script src="([^"]+)"(?: defer)?><\/script>/g,(m,src)=>src.startsWith('http')?'':`<script>${fs.readFileSync(path.join(root,src.split('?')[0]),'utf8').replaceAll('</script','<\\/script')}</script>`);
 const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!e.message.includes('Not implemented'))errors.push(e.message)});
 const dom=new JSDOM(html,{url:'https://junto-six-eta.vercel.app/',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){w.structuredClone=structuredClone;w.matchMedia=()=>({matches:false,addEventListener(){}});w.confirm=()=>true;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{}}});
 const w=dom.window;function run(source){const script=w.document.createElement('script');script.textContent=source;w.document.body.append(script);script.remove()}
