@@ -346,3 +346,13 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 .confirm-dialog .actions{justify-content:flex-end}
 @media (max-width:520px){.confirm-bg{place-items:end center;padding:12px}.confirm-dialog .actions{flex-direction:column-reverse}.confirm-dialog .actions .button{width:100%}}
 .modal:focus,.confirm-dialog:focus{outline:none}
+
+/* Vínculos familiares no editor de pessoa (family-links.js). */
+.family-links-section .family-links-list{display:grid;gap:6px;margin:10px 0}
+.family-links-section .record.editing{outline:2px solid var(--ds-primary,#3157d5);outline-offset:2px}
+.family-link-editor{margin-top:12px;padding:14px;border:1px dashed var(--ds-line,#d8deea);border-radius:16px;background:var(--ds-surface-2,#f7f9fc)}
+.family-link-sentence{margin:0 0 8px}
+.family-link-editor [data-family-link-preview],#family-link-form [data-family-link-preview]{font-weight:600;color:var(--ds-ink,#222c4c)}
+.family-quick-add{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.family-sentence-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:640px){.family-sentence-grid{grid-template-columns:1fr}}
